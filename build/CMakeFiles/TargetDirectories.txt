@@ -1,6 +1,7 @@
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/install/strip.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/install.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/list_install_components.dir
+/home/arvc/workSpaces/code_ws/build/CMakeFiles/arvc_plot_by_index.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/arvc_bag_manage.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/arvc_rename_files.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/arvc_view_pcd.dir
@@ -40,8 +41,10 @@
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/topic_tools_generate_messages_nodejs.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/rosgraph_msgs_generate_messages_nodejs.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/topic_tools_generate_messages_lisp.dir
+/home/arvc/workSpaces/code_ws/build/CMakeFiles/arvc_view_pcd_plane_by_plane.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/std_srvs_generate_messages_cpp.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/std_msgs_generate_messages_cpp.dir
+/home/arvc/workSpaces/code_ws/build/CMakeFiles/arvc_pcd_to_pcdNormals.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/geometry_msgs_generate_messages_eus.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/std_msgs_generate_messages_nodejs.dir
 /home/arvc/workSpaces/code_ws/build/CMakeFiles/std_msgs_generate_messages_py.dir

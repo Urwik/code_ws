@@ -1,6 +1,11 @@
 [
 {
   "directory": "/home/arvc/workSpaces/code_ws/build",
+  "command": "/usr/bin/g++  -DDISABLE_LIBUSB_1_0 -DDISABLE_PCAP -DDISABLE_PNG -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"codeUtilities\\\" -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=\"1(vtkRenderingContextOpenGL2)\" -DvtkRenderingCore_AUTOINIT=\"3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2)\" -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem /usr/include/pcl-1.10 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2    -g   -std=gnu++17 -o CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o -c /home/arvc/workSpaces/code_ws/src/plot_by_index.cpp",
+  "file": "/home/arvc/workSpaces/code_ws/src/plot_by_index.cpp"
+},
+{
+  "directory": "/home/arvc/workSpaces/code_ws/build",
   "command": "/usr/bin/g++  -DDISABLE_LIBUSB_1_0 -DDISABLE_PCAP -DDISABLE_PNG -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"codeUtilities\\\" -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=\"1(vtkRenderingContextOpenGL2)\" -DvtkRenderingCore_AUTOINIT=\"3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2)\" -I/usr/include/vtk-7.1 -I/usr/include/freetype2 -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/pcl-1.10 -I/usr/include/eigen3 -I/usr/include/ni -I/usr/include/openni2    -g   -std=gnu++17 -o CMakeFiles/arvc_bag_manage.dir/src/bag_manage.cpp.o -c /home/arvc/workSpaces/code_ws/src/bag_manage.cpp",
   "file": "/home/arvc/workSpaces/code_ws/src/bag_manage.cpp"
 },
@@ -23,6 +28,16 @@
   "directory": "/home/arvc/workSpaces/code_ws/build",
   "command": "/usr/bin/g++  -DDISABLE_LIBUSB_1_0 -DDISABLE_PCAP -DDISABLE_PNG -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"codeUtilities\\\" -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=\"1(vtkRenderingContextOpenGL2)\" -DvtkRenderingCore_AUTOINIT=\"3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2)\" -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem /usr/include/pcl-1.10 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2    -g   -std=gnu++17 -o CMakeFiles/arvc_view_ply.dir/src/view_ply.cpp.o -c /home/arvc/workSpaces/code_ws/src/view_ply.cpp",
   "file": "/home/arvc/workSpaces/code_ws/src/view_ply.cpp"
+},
+{
+  "directory": "/home/arvc/workSpaces/code_ws/build",
+  "command": "/usr/bin/g++  -DDISABLE_LIBUSB_1_0 -DDISABLE_PCAP -DDISABLE_PNG -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"codeUtilities\\\" -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=\"1(vtkRenderingContextOpenGL2)\" -DvtkRenderingCore_AUTOINIT=\"3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2)\" -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem /usr/include/pcl-1.10 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2    -g   -std=gnu++17 -o CMakeFiles/arvc_view_pcd_plane_by_plane.dir/src/view_pcd_plane_by_plane.cpp.o -c /home/arvc/workSpaces/code_ws/src/view_pcd_plane_by_plane.cpp",
+  "file": "/home/arvc/workSpaces/code_ws/src/view_pcd_plane_by_plane.cpp"
+},
+{
+  "directory": "/home/arvc/workSpaces/code_ws/build",
+  "command": "/usr/bin/g++  -DDISABLE_LIBUSB_1_0 -DDISABLE_PCAP -DDISABLE_PNG -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"codeUtilities\\\" -Dqh_QHpointer -DvtkRenderingContext2D_AUTOINIT=\"1(vtkRenderingContextOpenGL2)\" -DvtkRenderingCore_AUTOINIT=\"3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL2)\" -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -isystem /usr/include/vtk-7.1 -isystem /usr/include/freetype2 -isystem /usr/include/pcl-1.10 -isystem /usr/include/eigen3 -isystem /usr/include/ni -isystem /usr/include/openni2    -g   -std=gnu++17 -o CMakeFiles/arvc_pcd_to_pcdNormals.dir/src/pcd_to_pcdNormals.cpp.o -c /home/arvc/workSpaces/code_ws/src/pcd_to_pcdNormals.cpp",
+  "file": "/home/arvc/workSpaces/code_ws/src/pcd_to_pcdNormals.cpp"
 },
 {
   "directory": "/home/arvc/workSpaces/code_ws/build",

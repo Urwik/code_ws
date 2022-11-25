@@ -53,11 +53,14 @@ CMAKE_BINARY_DIR = /home/arvc/workSpaces/code_ws/build
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
+all: CMakeFiles/arvc_plot_by_index.dir/all
 all: CMakeFiles/arvc_bag_manage.dir/all
 all: CMakeFiles/arvc_rename_files.dir/all
 all: CMakeFiles/arvc_view_pcd.dir/all
 all: CMakeFiles/arvc_pcd2ply.dir/all
 all: CMakeFiles/arvc_view_ply.dir/all
+all: CMakeFiles/arvc_view_pcd_plane_by_plane.dir/all
+all: CMakeFiles/arvc_pcd_to_pcdNormals.dir/all
 all: CMakeFiles/arvc_change_bag_names.dir/all
 all: gtest/all
 
@@ -69,6 +72,7 @@ preinstall: gtest/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
+clean: CMakeFiles/arvc_plot_by_index.dir/clean
 clean: CMakeFiles/arvc_bag_manage.dir/clean
 clean: CMakeFiles/arvc_rename_files.dir/clean
 clean: CMakeFiles/arvc_view_pcd.dir/clean
@@ -103,8 +107,10 @@ clean: CMakeFiles/roscpp_generate_messages_eus.dir/clean
 clean: CMakeFiles/topic_tools_generate_messages_nodejs.dir/clean
 clean: CMakeFiles/rosgraph_msgs_generate_messages_nodejs.dir/clean
 clean: CMakeFiles/topic_tools_generate_messages_lisp.dir/clean
+clean: CMakeFiles/arvc_view_pcd_plane_by_plane.dir/clean
 clean: CMakeFiles/std_srvs_generate_messages_cpp.dir/clean
 clean: CMakeFiles/std_msgs_generate_messages_cpp.dir/clean
+clean: CMakeFiles/arvc_pcd_to_pcdNormals.dir/clean
 clean: CMakeFiles/geometry_msgs_generate_messages_eus.dir/clean
 clean: CMakeFiles/std_msgs_generate_messages_nodejs.dir/clean
 clean: CMakeFiles/std_msgs_generate_messages_py.dir/clean
@@ -177,6 +183,33 @@ gtest/googletest/clean: gtest/googletest/CMakeFiles/gtest.dir/clean
 .PHONY : gtest/googletest/clean
 
 #=============================================================================
+# Target rules for target CMakeFiles/arvc_plot_by_index.dir
+
+# All Build rule for target.
+CMakeFiles/arvc_plot_by_index.dir/all:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_index.dir/build.make CMakeFiles/arvc_plot_by_index.dir/depend
+	$(MAKE) -f CMakeFiles/arvc_plot_by_index.dir/build.make CMakeFiles/arvc_plot_by_index.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=9,10 "Built target arvc_plot_by_index"
+.PHONY : CMakeFiles/arvc_plot_by_index.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/arvc_plot_by_index.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/arvc/workSpaces/code_ws/build/CMakeFiles 2
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/arvc_plot_by_index.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/arvc/workSpaces/code_ws/build/CMakeFiles 0
+.PHONY : CMakeFiles/arvc_plot_by_index.dir/rule
+
+# Convenience name for target.
+arvc_plot_by_index: CMakeFiles/arvc_plot_by_index.dir/rule
+
+.PHONY : arvc_plot_by_index
+
+# clean rule for target.
+CMakeFiles/arvc_plot_by_index.dir/clean:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_index.dir/build.make CMakeFiles/arvc_plot_by_index.dir/clean
+.PHONY : CMakeFiles/arvc_plot_by_index.dir/clean
+
+#=============================================================================
 # Target rules for target CMakeFiles/arvc_bag_manage.dir
 
 # All Build rule for target.
@@ -210,7 +243,7 @@ CMakeFiles/arvc_bag_manage.dir/clean:
 CMakeFiles/arvc_rename_files.dir/all:
 	$(MAKE) -f CMakeFiles/arvc_rename_files.dir/build.make CMakeFiles/arvc_rename_files.dir/depend
 	$(MAKE) -f CMakeFiles/arvc_rename_files.dir/build.make CMakeFiles/arvc_rename_files.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=7,8 "Built target arvc_rename_files"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=11,12 "Built target arvc_rename_files"
 .PHONY : CMakeFiles/arvc_rename_files.dir/all
 
 # Build rule for subdir invocation for target.
@@ -237,7 +270,7 @@ CMakeFiles/arvc_rename_files.dir/clean:
 CMakeFiles/arvc_view_pcd.dir/all:
 	$(MAKE) -f CMakeFiles/arvc_view_pcd.dir/build.make CMakeFiles/arvc_view_pcd.dir/depend
 	$(MAKE) -f CMakeFiles/arvc_view_pcd.dir/build.make CMakeFiles/arvc_view_pcd.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=9,10 "Built target arvc_view_pcd"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=13,14 "Built target arvc_view_pcd"
 .PHONY : CMakeFiles/arvc_view_pcd.dir/all
 
 # Build rule for subdir invocation for target.
@@ -426,7 +459,7 @@ CMakeFiles/sensor_msgs_generate_messages_py.dir/clean:
 CMakeFiles/arvc_view_ply.dir/all:
 	$(MAKE) -f CMakeFiles/arvc_view_ply.dir/build.make CMakeFiles/arvc_view_ply.dir/depend
 	$(MAKE) -f CMakeFiles/arvc_view_ply.dir/build.make CMakeFiles/arvc_view_ply.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=11,12 "Built target arvc_view_ply"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=17,18 "Built target arvc_view_ply"
 .PHONY : CMakeFiles/arvc_view_ply.dir/all
 
 # Build rule for subdir invocation for target.
@@ -1095,6 +1128,33 @@ CMakeFiles/topic_tools_generate_messages_lisp.dir/clean:
 .PHONY : CMakeFiles/topic_tools_generate_messages_lisp.dir/clean
 
 #=============================================================================
+# Target rules for target CMakeFiles/arvc_view_pcd_plane_by_plane.dir
+
+# All Build rule for target.
+CMakeFiles/arvc_view_pcd_plane_by_plane.dir/all:
+	$(MAKE) -f CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build.make CMakeFiles/arvc_view_pcd_plane_by_plane.dir/depend
+	$(MAKE) -f CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build.make CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=15,16 "Built target arvc_view_pcd_plane_by_plane"
+.PHONY : CMakeFiles/arvc_view_pcd_plane_by_plane.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/arvc_view_pcd_plane_by_plane.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/arvc/workSpaces/code_ws/build/CMakeFiles 2
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/arvc_view_pcd_plane_by_plane.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/arvc/workSpaces/code_ws/build/CMakeFiles 0
+.PHONY : CMakeFiles/arvc_view_pcd_plane_by_plane.dir/rule
+
+# Convenience name for target.
+arvc_view_pcd_plane_by_plane: CMakeFiles/arvc_view_pcd_plane_by_plane.dir/rule
+
+.PHONY : arvc_view_pcd_plane_by_plane
+
+# clean rule for target.
+CMakeFiles/arvc_view_pcd_plane_by_plane.dir/clean:
+	$(MAKE) -f CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build.make CMakeFiles/arvc_view_pcd_plane_by_plane.dir/clean
+.PHONY : CMakeFiles/arvc_view_pcd_plane_by_plane.dir/clean
+
+#=============================================================================
 # Target rules for target CMakeFiles/std_srvs_generate_messages_cpp.dir
 
 # All Build rule for target.
@@ -1147,6 +1207,33 @@ std_msgs_generate_messages_cpp: CMakeFiles/std_msgs_generate_messages_cpp.dir/ru
 CMakeFiles/std_msgs_generate_messages_cpp.dir/clean:
 	$(MAKE) -f CMakeFiles/std_msgs_generate_messages_cpp.dir/build.make CMakeFiles/std_msgs_generate_messages_cpp.dir/clean
 .PHONY : CMakeFiles/std_msgs_generate_messages_cpp.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/arvc_pcd_to_pcdNormals.dir
+
+# All Build rule for target.
+CMakeFiles/arvc_pcd_to_pcdNormals.dir/all:
+	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/depend
+	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=7,8 "Built target arvc_pcd_to_pcdNormals"
+.PHONY : CMakeFiles/arvc_pcd_to_pcdNormals.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/arvc_pcd_to_pcdNormals.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/arvc/workSpaces/code_ws/build/CMakeFiles 2
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/arvc_pcd_to_pcdNormals.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/arvc/workSpaces/code_ws/build/CMakeFiles 0
+.PHONY : CMakeFiles/arvc_pcd_to_pcdNormals.dir/rule
+
+# Convenience name for target.
+arvc_pcd_to_pcdNormals: CMakeFiles/arvc_pcd_to_pcdNormals.dir/rule
+
+.PHONY : arvc_pcd_to_pcdNormals
+
+# clean rule for target.
+CMakeFiles/arvc_pcd_to_pcdNormals.dir/clean:
+	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/clean
+.PHONY : CMakeFiles/arvc_pcd_to_pcdNormals.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/geometry_msgs_generate_messages_eus.dir
@@ -1426,7 +1513,7 @@ gtest/googlemock/CMakeFiles/gmock_main.dir/all: gtest/googlemock/CMakeFiles/gmoc
 gtest/googlemock/CMakeFiles/gmock_main.dir/all: gtest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) -f gtest/googlemock/CMakeFiles/gmock_main.dir/build.make gtest/googlemock/CMakeFiles/gmock_main.dir/depend
 	$(MAKE) -f gtest/googlemock/CMakeFiles/gmock_main.dir/build.make gtest/googlemock/CMakeFiles/gmock_main.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=15,16 "Built target gmock_main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=21,22 "Built target gmock_main"
 .PHONY : gtest/googlemock/CMakeFiles/gmock_main.dir/all
 
 # Build rule for subdir invocation for target.
@@ -1453,7 +1540,7 @@ gtest/googlemock/CMakeFiles/gmock_main.dir/clean:
 gtest/googlemock/CMakeFiles/gmock.dir/all: gtest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) -f gtest/googlemock/CMakeFiles/gmock.dir/build.make gtest/googlemock/CMakeFiles/gmock.dir/depend
 	$(MAKE) -f gtest/googlemock/CMakeFiles/gmock.dir/build.make gtest/googlemock/CMakeFiles/gmock.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=13,14 "Built target gmock"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=19,20 "Built target gmock"
 .PHONY : gtest/googlemock/CMakeFiles/gmock.dir/all
 
 # Build rule for subdir invocation for target.
@@ -1480,7 +1567,7 @@ gtest/googlemock/CMakeFiles/gmock.dir/clean:
 gtest/googletest/CMakeFiles/gtest_main.dir/all: gtest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) -f gtest/googletest/CMakeFiles/gtest_main.dir/build.make gtest/googletest/CMakeFiles/gtest_main.dir/depend
 	$(MAKE) -f gtest/googletest/CMakeFiles/gtest_main.dir/build.make gtest/googletest/CMakeFiles/gtest_main.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=19,20 "Built target gtest_main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=25,26 "Built target gtest_main"
 .PHONY : gtest/googletest/CMakeFiles/gtest_main.dir/all
 
 # Build rule for subdir invocation for target.
@@ -1507,7 +1594,7 @@ gtest/googletest/CMakeFiles/gtest_main.dir/clean:
 gtest/googletest/CMakeFiles/gtest.dir/all:
 	$(MAKE) -f gtest/googletest/CMakeFiles/gtest.dir/build.make gtest/googletest/CMakeFiles/gtest.dir/depend
 	$(MAKE) -f gtest/googletest/CMakeFiles/gtest.dir/build.make gtest/googletest/CMakeFiles/gtest.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=17,18 "Built target gtest"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/arvc/workSpaces/code_ws/build/CMakeFiles --progress-num=23,24 "Built target gtest"
 .PHONY : gtest/googletest/CMakeFiles/gtest.dir/all
 
 # Build rule for subdir invocation for target.

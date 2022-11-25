@@ -190,6 +190,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named arvc_plot_by_index
+
+# Build rule for target.
+arvc_plot_by_index: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 arvc_plot_by_index
+.PHONY : arvc_plot_by_index
+
+# fast build rule for target.
+arvc_plot_by_index/fast:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_index.dir/build.make CMakeFiles/arvc_plot_by_index.dir/build
+.PHONY : arvc_plot_by_index/fast
+
+#=============================================================================
 # Target rules for targets named arvc_bag_manage
 
 # Build rule for target.
@@ -632,6 +645,19 @@ topic_tools_generate_messages_lisp/fast:
 .PHONY : topic_tools_generate_messages_lisp/fast
 
 #=============================================================================
+# Target rules for targets named arvc_view_pcd_plane_by_plane
+
+# Build rule for target.
+arvc_view_pcd_plane_by_plane: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 arvc_view_pcd_plane_by_plane
+.PHONY : arvc_view_pcd_plane_by_plane
+
+# fast build rule for target.
+arvc_view_pcd_plane_by_plane/fast:
+	$(MAKE) -f CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build.make CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build
+.PHONY : arvc_view_pcd_plane_by_plane/fast
+
+#=============================================================================
 # Target rules for targets named std_srvs_generate_messages_cpp
 
 # Build rule for target.
@@ -656,6 +682,19 @@ std_msgs_generate_messages_cpp: cmake_check_build_system
 std_msgs_generate_messages_cpp/fast:
 	$(MAKE) -f CMakeFiles/std_msgs_generate_messages_cpp.dir/build.make CMakeFiles/std_msgs_generate_messages_cpp.dir/build
 .PHONY : std_msgs_generate_messages_cpp/fast
+
+#=============================================================================
+# Target rules for targets named arvc_pcd_to_pcdNormals
+
+# Build rule for target.
+arvc_pcd_to_pcdNormals: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 arvc_pcd_to_pcdNormals
+.PHONY : arvc_pcd_to_pcdNormals
+
+# fast build rule for target.
+arvc_pcd_to_pcdNormals/fast:
+	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/build
+.PHONY : arvc_pcd_to_pcdNormals/fast
 
 #=============================================================================
 # Target rules for targets named geometry_msgs_generate_messages_eus
@@ -920,6 +959,60 @@ src/pcd2ply.cpp.s:
 	$(MAKE) -f CMakeFiles/arvc_pcd2ply.dir/build.make CMakeFiles/arvc_pcd2ply.dir/src/pcd2ply.cpp.s
 .PHONY : src/pcd2ply.cpp.s
 
+src/pcd_to_pcdNormals.o: src/pcd_to_pcdNormals.cpp.o
+
+.PHONY : src/pcd_to_pcdNormals.o
+
+# target to build an object file
+src/pcd_to_pcdNormals.cpp.o:
+	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/src/pcd_to_pcdNormals.cpp.o
+.PHONY : src/pcd_to_pcdNormals.cpp.o
+
+src/pcd_to_pcdNormals.i: src/pcd_to_pcdNormals.cpp.i
+
+.PHONY : src/pcd_to_pcdNormals.i
+
+# target to preprocess a source file
+src/pcd_to_pcdNormals.cpp.i:
+	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/src/pcd_to_pcdNormals.cpp.i
+.PHONY : src/pcd_to_pcdNormals.cpp.i
+
+src/pcd_to_pcdNormals.s: src/pcd_to_pcdNormals.cpp.s
+
+.PHONY : src/pcd_to_pcdNormals.s
+
+# target to generate assembly for a file
+src/pcd_to_pcdNormals.cpp.s:
+	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/src/pcd_to_pcdNormals.cpp.s
+.PHONY : src/pcd_to_pcdNormals.cpp.s
+
+src/plot_by_index.o: src/plot_by_index.cpp.o
+
+.PHONY : src/plot_by_index.o
+
+# target to build an object file
+src/plot_by_index.cpp.o:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_index.dir/build.make CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o
+.PHONY : src/plot_by_index.cpp.o
+
+src/plot_by_index.i: src/plot_by_index.cpp.i
+
+.PHONY : src/plot_by_index.i
+
+# target to preprocess a source file
+src/plot_by_index.cpp.i:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_index.dir/build.make CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.i
+.PHONY : src/plot_by_index.cpp.i
+
+src/plot_by_index.s: src/plot_by_index.cpp.s
+
+.PHONY : src/plot_by_index.s
+
+# target to generate assembly for a file
+src/plot_by_index.cpp.s:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_index.dir/build.make CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.s
+.PHONY : src/plot_by_index.cpp.s
+
 src/rename_files.o: src/rename_files.cpp.o
 
 .PHONY : src/rename_files.o
@@ -974,6 +1067,33 @@ src/view_pcd.cpp.s:
 	$(MAKE) -f CMakeFiles/arvc_view_pcd.dir/build.make CMakeFiles/arvc_view_pcd.dir/src/view_pcd.cpp.s
 .PHONY : src/view_pcd.cpp.s
 
+src/view_pcd_plane_by_plane.o: src/view_pcd_plane_by_plane.cpp.o
+
+.PHONY : src/view_pcd_plane_by_plane.o
+
+# target to build an object file
+src/view_pcd_plane_by_plane.cpp.o:
+	$(MAKE) -f CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build.make CMakeFiles/arvc_view_pcd_plane_by_plane.dir/src/view_pcd_plane_by_plane.cpp.o
+.PHONY : src/view_pcd_plane_by_plane.cpp.o
+
+src/view_pcd_plane_by_plane.i: src/view_pcd_plane_by_plane.cpp.i
+
+.PHONY : src/view_pcd_plane_by_plane.i
+
+# target to preprocess a source file
+src/view_pcd_plane_by_plane.cpp.i:
+	$(MAKE) -f CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build.make CMakeFiles/arvc_view_pcd_plane_by_plane.dir/src/view_pcd_plane_by_plane.cpp.i
+.PHONY : src/view_pcd_plane_by_plane.cpp.i
+
+src/view_pcd_plane_by_plane.s: src/view_pcd_plane_by_plane.cpp.s
+
+.PHONY : src/view_pcd_plane_by_plane.s
+
+# target to generate assembly for a file
+src/view_pcd_plane_by_plane.cpp.s:
+	$(MAKE) -f CMakeFiles/arvc_view_pcd_plane_by_plane.dir/build.make CMakeFiles/arvc_view_pcd_plane_by_plane.dir/src/view_pcd_plane_by_plane.cpp.s
+.PHONY : src/view_pcd_plane_by_plane.cpp.s
+
 src/view_ply.o: src/view_ply.cpp.o
 
 .PHONY : src/view_ply.o
@@ -1010,6 +1130,7 @@ help:
 	@echo "... install/strip"
 	@echo "... install"
 	@echo "... list_install_components"
+	@echo "... arvc_plot_by_index"
 	@echo "... arvc_bag_manage"
 	@echo "... arvc_rename_files"
 	@echo "... arvc_view_pcd"
@@ -1049,8 +1170,10 @@ help:
 	@echo "... topic_tools_generate_messages_nodejs"
 	@echo "... rosgraph_msgs_generate_messages_nodejs"
 	@echo "... topic_tools_generate_messages_lisp"
+	@echo "... arvc_view_pcd_plane_by_plane"
 	@echo "... std_srvs_generate_messages_cpp"
 	@echo "... std_msgs_generate_messages_cpp"
+	@echo "... arvc_pcd_to_pcdNormals"
 	@echo "... geometry_msgs_generate_messages_eus"
 	@echo "... std_msgs_generate_messages_nodejs"
 	@echo "... std_msgs_generate_messages_py"
@@ -1075,12 +1198,21 @@ help:
 	@echo "... src/pcd2ply.o"
 	@echo "... src/pcd2ply.i"
 	@echo "... src/pcd2ply.s"
+	@echo "... src/pcd_to_pcdNormals.o"
+	@echo "... src/pcd_to_pcdNormals.i"
+	@echo "... src/pcd_to_pcdNormals.s"
+	@echo "... src/plot_by_index.o"
+	@echo "... src/plot_by_index.i"
+	@echo "... src/plot_by_index.s"
 	@echo "... src/rename_files.o"
 	@echo "... src/rename_files.i"
 	@echo "... src/rename_files.s"
 	@echo "... src/view_pcd.o"
 	@echo "... src/view_pcd.i"
 	@echo "... src/view_pcd.s"
+	@echo "... src/view_pcd_plane_by_plane.o"
+	@echo "... src/view_pcd_plane_by_plane.i"
+	@echo "... src/view_pcd_plane_by_plane.s"
 	@echo "... src/view_ply.o"
 	@echo "... src/view_ply.i"
 	@echo "... src/view_ply.s"
