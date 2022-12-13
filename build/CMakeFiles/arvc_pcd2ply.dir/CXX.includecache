@@ -17,6 +17,10 @@ pcl/io/pcd_io.h
 -
 pcl/io/ply_io.h
 -
+pcl/io/file_io.h
+-
+pcl/io/io.h
+-
 pcl/point_cloud.h
 -
 pcl/point_types.h
@@ -1386,6 +1390,10 @@ pcl/io/low_level_io.h
 pcl/io/pcd_io.h
 -
 pcl/io/lzf.h
+-
+
+/usr/include/pcl-1.10/pcl/io/io.h
+pcl/common/io.h
 -
 
 /usr/include/pcl-1.10/pcl/io/low_level_io.h

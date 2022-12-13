@@ -252,6 +252,11 @@ CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o
  /usr/include/pcl-1.10/pcl/io/low_level_io.h
  /usr/include/pcl-1.10/pcl/io/lzf.h
  /usr/include/pcl-1.10/pcl/io/pcd_io.h
+ /usr/include/pcl-1.10/pcl/io/ply/byte_order.h
+ /usr/include/pcl-1.10/pcl/io/ply/io_operators.h
+ /usr/include/pcl-1.10/pcl/io/ply/ply.h
+ /usr/include/pcl-1.10/pcl/io/ply/ply_parser.h
+ /usr/include/pcl-1.10/pcl/io/ply_io.h
  /usr/include/pcl-1.10/pcl/make_shared.h
  /usr/include/pcl-1.10/pcl/pcl_base.h
  /usr/include/pcl-1.10/pcl/pcl_config.h

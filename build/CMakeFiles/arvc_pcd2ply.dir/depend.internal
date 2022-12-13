@@ -231,6 +231,7 @@ CMakeFiles/arvc_pcd2ply.dir/src/pcd2ply.cpp.o
  /usr/include/pcl-1.10/pcl/io/boost.h
  /usr/include/pcl-1.10/pcl/io/file_io.h
  /usr/include/pcl-1.10/pcl/io/impl/pcd_io.hpp
+ /usr/include/pcl-1.10/pcl/io/io.h
  /usr/include/pcl-1.10/pcl/io/low_level_io.h
  /usr/include/pcl-1.10/pcl/io/lzf.h
  /usr/include/pcl-1.10/pcl/io/pcd_io.h

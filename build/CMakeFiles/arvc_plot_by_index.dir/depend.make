@@ -251,6 +251,11 @@ CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10
 CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/low_level_io.h
 CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/lzf.h
 CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/pcd_io.h
+CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/ply/byte_order.h
+CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/ply/io_operators.h
+CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/ply/ply.h
+CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/ply/ply_parser.h
+CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/io/ply_io.h
 CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/make_shared.h
 CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/pcl_base.h
 CMakeFiles/arvc_plot_by_index.dir/src/plot_by_index.cpp.o: /usr/include/pcl-1.10/pcl/pcl_config.h

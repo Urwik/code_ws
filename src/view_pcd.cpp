@@ -15,7 +15,7 @@
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
 
-typedef pcl::PointXYZRGB PointT;
+typedef pcl::PointXYZI PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 pcl::visualization::PCLVisualizer::Ptr pclVisualizer (new pcl::visualization::PCLVisualizer ("PCL Visualizer"));
 
@@ -29,35 +29,43 @@ int main(int argc, char **argv)
 {
   // Get handlres for source and target cloud data /////////////////////////////
   fs::path current_path = fs::current_path();
-  pcl::PCDReader pcd_reader;
-
-  if (argc <= 1)
-    std::cout << "NEED TO SPECIFY THE FILE" << std::endl;
-  
-  std::string filename = argv[1];
-  
+  pcl::PCDReader cloud_reader;
   PointCloud::Ptr cloud (new PointCloud);
+  bool button = false;
 
-  fs::path abs_file_path;
-  abs_file_path = current_path.c_str() + '/' + filename;
 
-  pcd_reader.read(filename, *cloud);
+  if(argc < 2)
+  {
+    for(const auto &entry : fs::directory_iterator(current_path))
+    {
+      cloud_reader.read(entry.path().string(), *cloud);
+      pclVisualizer->addPointCloud<PointT>(cloud, "cloud");
+      
+      button = false;
+      while(!button)
+      {
+        if(std::getchar() == '\n')
+          button = true;
+        else
+          pclVisualizer->spinOnce(100);
+      }
+      
+      pclVisualizer->removeAllPointClouds();
 
-//***** Visualization ******************************************************//
-//   int v1(0);
-//   int v2(0);
+    }
+  }
+  else
+  {
+    std::string filename = argv[1];
+    // fs::path abs_file_path;
+    // abs_file_path = current_path.c_str() + '/' + filename;
 
-// //  Define ViewPorts
-//   pclVisualizer->createViewPort(0,0,0.5,1, v1);
-//   pclVisualizer->createViewPort(0.5,0,1,1, v2);
+    cloud_reader.read(filename, *cloud);
+    pclVisualizer->addPointCloud<PointT> (cloud, "cloud");
 
-  pclVisualizer->addPointCloud<PointT> (cloud, "cloud");
-
-  while (!pclVisualizer->wasStopped())
-    pclVisualizer->spinOnce(100);
+    while (!pclVisualizer->wasStopped())
+      pclVisualizer->spinOnce(100);
+  }
 
   return 0;
 }
-
-
-
