@@ -91,7 +91,20 @@ void plotCloud(fs::path path_to_cloud, int min_points = 20, int max_points = 100
 
     extract.setIndices(indices);
     extract.filter(*tmp_cloud);
-    myRGB color = randRGB();
+
+    myRGB color;
+
+    if (i==0)
+    {
+      color.r = 100;
+      color.g = 100;
+      color.b = 100;
+    }
+    else
+    {
+      color = randRGB();
+    }
+
     pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color (tmp_cloud, color.r, color.g, color.b);
     visualizer->addPointCloud<PointT>(tmp_cloud, single_color, ss.str().c_str());
 

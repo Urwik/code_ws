@@ -1,5 +1,6 @@
 #include <iostream>
 #include <filesystem>
+#include <thread>
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -18,6 +19,7 @@ namespace fs = std::filesystem;
 
 pclVis::Ptr visualizer (new pclVis("Visualizer"));
 
+bool button = false;
 
 struct myRGB{
   int r;
@@ -87,14 +89,32 @@ void plotCloud(fs::path path_to_cloud, int min_points = 20, int max_points = 100
 
     extract.setIndices(indices);
     extract.filter(*tmp_cloud);
-    
+    myRGB color;
+
     if (i==0)
-      myRGB color;
+    {
+      color.r = 100;
+      color.g = 100;
+      color.b = 100;
+    }
     else if (i==1) 
-      myRGB color(0, 255, 0);
+    {
+      color.r = 0;
+      color.g = 255;
+      color.b = 0;
+    }
 
     pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color (tmp_cloud, color.r, color.g, color.b);
     visualizer->addPointCloud<PointT>(tmp_cloud, single_color, ss.str().c_str());
+  }
+}
+
+void getlastkey()
+{
+  while(!visualizer->wasStopped())
+  {
+    std::getchar();
+    button = true;
   }
 }
 
@@ -104,16 +124,24 @@ int main(int argc, char **argv)
   fs::path current_path = fs::current_path();
   pcl::PCDReader cloud_reader;
   PointCloud::Ptr cloud (new PointCloud);
-  bool button = false;
 
+  std::thread check_keys(getlastkey);
 
   if(argc < 2)
   {
     for(const auto &entry : fs::directory_iterator(current_path))
     {
       plotCloud(entry.path(), 10, 10000000);
-      visualizer->spinOnce(1000);
-      visualizer->removeAllPointClouds();
+      while (!visualizer->wasStopped())
+      {
+        visualizer->spinOnce(100);
+        if(button)
+        {
+          visualizer->removeAllPointClouds();
+          button = false;
+          break;
+        }
+      }
     }
   }
 
@@ -121,10 +149,9 @@ int main(int argc, char **argv)
   {
     std::string filename = argv[1];
     plotCloud(filename, 10, 10000000);
+    while (!visualizer->wasStopped())
+      visualizer->spinOnce(100);
   }
-
-  while (!visualizer->wasStopped())
-    visualizer->spinOnce(100);
 
   return 0;  
 }

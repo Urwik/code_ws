@@ -5,9 +5,9 @@
 # it emulates the modifications of the setup script without recurring computations
 
 # new environment variables
+export ROSLISP_PACKAGE_DIRECTORIES='/home/arvc/workSpaces/code_ws/build/devel/share/common-lisp'
 
 # modified environment variables
 export CMAKE_PREFIX_PATH="/home/arvc/workSpaces/code_ws/build/devel:$CMAKE_PREFIX_PATH"
 export PWD='/home/arvc/workSpaces/code_ws/build'
-export ROSLISP_PACKAGE_DIRECTORIES='/home/arvc/workSpaces/code_ws/build/devel/share/common-lisp'
 export ROS_PACKAGE_PATH="/home/arvc/workSpaces/code_ws:$ROS_PACKAGE_PATH"

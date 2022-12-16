@@ -43,6 +43,9 @@ target_link_libraries(arvc_pcd_to_pcdNormals ${catkin_LIBRARIES} ${PCL_LIBRARIES
 add_executable(arvc_plot_by_index src/plot_by_index.cpp)
 target_link_libraries(arvc_plot_by_index ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(arvc_plot_by_binary_label src/plot_by_binary_label.cpp)
+target_link_libraries(arvc_plot_by_binary_label ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(arvc_replace_field src/replace_field.cpp)
 target_link_libraries(arvc_replace_field ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 

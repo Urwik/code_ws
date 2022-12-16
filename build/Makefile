@@ -102,6 +102,18 @@ rebuild_cache/fast: rebuild_cache
 
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
 # Special rule for the target package_source
 package_source:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Run CPack packaging tool for source..."
@@ -134,18 +146,6 @@ edit_cache:
 edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
-
-# Special rule for the target install
-install: preinstall
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
-	/usr/bin/cmake -P cmake_install.cmake
-.PHONY : install
-
-# Special rule for the target install
-install/fast: preinstall/fast
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
-	/usr/bin/cmake -P cmake_install.cmake
-.PHONY : install/fast
 
 # Special rule for the target list_install_components
 list_install_components:
@@ -424,6 +424,19 @@ roscpp_generate_messages_eus/fast:
 .PHONY : roscpp_generate_messages_eus/fast
 
 #=============================================================================
+# Target rules for targets named tests
+
+# Build rule for target.
+tests: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 tests
+.PHONY : tests
+
+# fast build rule for target.
+tests/fast:
+	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/build
+.PHONY : tests/fast
+
+#=============================================================================
 # Target rules for targets named clean_test_results
 
 # Build rule for target.
@@ -604,6 +617,19 @@ std_srvs_generate_messages_py: cmake_check_build_system
 std_srvs_generate_messages_py/fast:
 	$(MAKE) -f CMakeFiles/std_srvs_generate_messages_py.dir/build.make CMakeFiles/std_srvs_generate_messages_py.dir/build
 .PHONY : std_srvs_generate_messages_py/fast
+
+#=============================================================================
+# Target rules for targets named arvc_plot_by_binary_label
+
+# Build rule for target.
+arvc_plot_by_binary_label: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 arvc_plot_by_binary_label
+.PHONY : arvc_plot_by_binary_label
+
+# fast build rule for target.
+arvc_plot_by_binary_label/fast:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_binary_label.dir/build.make CMakeFiles/arvc_plot_by_binary_label.dir/build
+.PHONY : arvc_plot_by_binary_label/fast
 
 #=============================================================================
 # Target rules for targets named rosgraph_msgs_generate_messages_eus
@@ -825,19 +851,6 @@ arvc_main: cmake_check_build_system
 arvc_main/fast:
 	$(MAKE) -f CMakeFiles/arvc_main.dir/build.make CMakeFiles/arvc_main.dir/build
 .PHONY : arvc_main/fast
-
-#=============================================================================
-# Target rules for targets named tests
-
-# Build rule for target.
-tests: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 tests
-.PHONY : tests
-
-# fast build rule for target.
-tests/fast:
-	$(MAKE) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/build
-.PHONY : tests/fast
 
 #=============================================================================
 # Target rules for targets named topic_tools_generate_messages_cpp
@@ -1079,6 +1092,33 @@ src/pcd_to_pcdNormals.cpp.s:
 	$(MAKE) -f CMakeFiles/arvc_pcd_to_pcdNormals.dir/build.make CMakeFiles/arvc_pcd_to_pcdNormals.dir/src/pcd_to_pcdNormals.cpp.s
 .PHONY : src/pcd_to_pcdNormals.cpp.s
 
+src/plot_by_binary_label.o: src/plot_by_binary_label.cpp.o
+
+.PHONY : src/plot_by_binary_label.o
+
+# target to build an object file
+src/plot_by_binary_label.cpp.o:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_binary_label.dir/build.make CMakeFiles/arvc_plot_by_binary_label.dir/src/plot_by_binary_label.cpp.o
+.PHONY : src/plot_by_binary_label.cpp.o
+
+src/plot_by_binary_label.i: src/plot_by_binary_label.cpp.i
+
+.PHONY : src/plot_by_binary_label.i
+
+# target to preprocess a source file
+src/plot_by_binary_label.cpp.i:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_binary_label.dir/build.make CMakeFiles/arvc_plot_by_binary_label.dir/src/plot_by_binary_label.cpp.i
+.PHONY : src/plot_by_binary_label.cpp.i
+
+src/plot_by_binary_label.s: src/plot_by_binary_label.cpp.s
+
+.PHONY : src/plot_by_binary_label.s
+
+# target to generate assembly for a file
+src/plot_by_binary_label.cpp.s:
+	$(MAKE) -f CMakeFiles/arvc_plot_by_binary_label.dir/build.make CMakeFiles/arvc_plot_by_binary_label.dir/src/plot_by_binary_label.cpp.s
+.PHONY : src/plot_by_binary_label.cpp.s
+
 src/plot_by_index.o: src/plot_by_index.cpp.o
 
 .PHONY : src/plot_by_index.o
@@ -1269,6 +1309,8 @@ help:
 	@echo "... topic_tools_generate_messages_nodejs"
 	@echo "... roscpp_generate_messages_eus"
 	@echo "... rebuild_cache"
+	@echo "... install"
+	@echo "... tests"
 	@echo "... package_source"
 	@echo "... clean_test_results"
 	@echo "... roscpp_generate_messages_lisp"
@@ -1284,6 +1326,7 @@ help:
 	@echo "... roscpp_generate_messages_nodejs"
 	@echo "... topic_tools_generate_messages_eus"
 	@echo "... std_srvs_generate_messages_py"
+	@echo "... arvc_plot_by_binary_label"
 	@echo "... rosgraph_msgs_generate_messages_eus"
 	@echo "... sensor_msgs_generate_messages_cpp"
 	@echo "... sensor_msgs_generate_messages_eus"
@@ -1303,8 +1346,6 @@ help:
 	@echo "... arvc_bag_manage"
 	@echo "... arvc_plot_by_index"
 	@echo "... arvc_main"
-	@echo "... tests"
-	@echo "... install"
 	@echo "... topic_tools_generate_messages_cpp"
 	@echo "... arvc_get_num_of_planes"
 	@echo "... list_install_components"
@@ -1330,6 +1371,9 @@ help:
 	@echo "... src/pcd_to_pcdNormals.o"
 	@echo "... src/pcd_to_pcdNormals.i"
 	@echo "... src/pcd_to_pcdNormals.s"
+	@echo "... src/plot_by_binary_label.o"
+	@echo "... src/plot_by_binary_label.i"
+	@echo "... src/plot_by_binary_label.s"
 	@echo "... src/plot_by_index.o"
 	@echo "... src/plot_by_index.i"
 	@echo "... src/plot_by_index.s"

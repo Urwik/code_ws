@@ -29,6 +29,7 @@ pcl::PLYWriter ply_writer;
 pcl::RandomSample<PointT> rand_filter;
 pcl::PassThrough<PointT> pass;
 fs::path current_path;
+fs::path ply_path;
 
 void read_txt(fs::path input_file)
 {
@@ -78,7 +79,7 @@ void read_txt(fs::path input_file)
   fs::remove(tmp_file_path);
 }
 
-void pcd_to_ply(fs::path input_file, std::string output_dir = "/ply/", bool filter = false, int npoints = 4000, bool binary = true)
+void pcd_to_ply(fs::path input_file, bool filter = false, int npoints = 4000, bool binary = true)
 {
   std::cout << "Parsing file " << input_file.filename() << std::endl;
   //CLOUD
@@ -90,16 +91,12 @@ void pcd_to_ply(fs::path input_file, std::string output_dir = "/ply/", bool filt
 
   //DIRECTORIES
   std::string file_ext, in_filename, out_filename, out_filename_path;
+  fs::path out_file_path;
 
   file_ext = input_file.extension();
   in_filename = input_file.stem();
   out_filename = in_filename + ".ply";
-  std::string out_dir = current_path.string() + output_dir;
-
-  if(!fs::exists(fs::path(out_dir)))
-    fs::create_directory(fs::path(out_dir));
-
-  out_filename_path = out_dir + out_filename;
+  out_file_path = ply_path / out_filename;
 
   //READ AND WRITE
 
@@ -117,7 +114,7 @@ void pcd_to_ply(fs::path input_file, std::string output_dir = "/ply/", bool filt
       rand_filter.filter(*pc);
     }
 
-    ply_writer.write(out_filename_path, *pc, binary, false);
+    ply_writer.write(out_file_path.string(), *pc, binary, false);
   }
 }
 
@@ -134,34 +131,21 @@ void read_file (fs::path input_file){
 int main(int argc, char **argv)
 {
   current_path = fs::current_path();
-  
+  ply_path = current_path.parent_path() / "ply";
+
+  if(!fs::exists(ply_path))
+    fs::create_directory(ply_path);
+
   if(argc < 2)
     for(const auto &entry : fs::directory_iterator(current_path))
     {
-      pcd_to_ply(entry.path(), "/ply/", true, 25000, true);
-      // read_file(entry.path());
+      pcd_to_ply(entry.path(), true, 25000, true);
     }
   else
   {
     fs::path input_dir = argv[1];
-    pcd_to_ply(input_dir, "/ply/", true, 25000, true);
+    pcd_to_ply(input_dir, true, 25000, true);
   }
 
   return 0;
 }
-
-
-
-
-
-  // while (!infile.eof())
-  // {
-  //   std::getline(infile, line);
-  //   std::cout << line << std::endl;
-  // }
-
-  // for (size_t i = 0; i < 7; i++)
-  // {
-  //   std::getline(infile, line);
-  //   6,9
-  // }
