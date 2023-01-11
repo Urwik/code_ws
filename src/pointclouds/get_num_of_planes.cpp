@@ -73,10 +73,10 @@ void writePlanesCount(std::map<std::string, int> planesCount){
 int main(int argc, char **argv)
 {
   // Get handlres for source and target cloud data /////////////////////////////
-  fs::path current_path = fs::current_path();
 
   if(argc < 2)
   {
+    fs::path current_path = fs::current_path();
     std::map<std::string, int> cloud_planes_count;
     std::vector<int> planes_count;
     for(const auto &entry : fs::directory_iterator(current_path))

@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     intensity_vector.push_back(point.intensity);
   }
 
-  std::vector<int>::iterator asdf = std::find(intensity_vector.begin(), intensity_vector.end(), 5);
+  // std::vector<int>::iterator asdf = std::find(intensity_vector.begin(), intensity_vector.end(), 5);
 
   
 
