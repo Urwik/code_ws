@@ -109,8 +109,6 @@ int main(int argc, char **argv)
     // sor.filter(*source);
 
 
-
-
     // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1(*source);
     // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2(*target);
     pclVisualizer->removeAllPointClouds();

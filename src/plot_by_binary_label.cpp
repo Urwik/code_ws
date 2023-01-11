@@ -76,6 +76,7 @@ void plotCloud(fs::path path_to_cloud, int min_points = 20, int max_points = 100
     reader.read(path_to_cloud, *cloud);
   }
     
+  std::cout << path_to_cloud.stem().string() << std::endl;
     
   std::stringstream ss;
   

@@ -24,7 +24,6 @@ target_link_libraries(arvc_view_ply ${PCL_LIBRARIES})
 add_executable(arvc_view_pcd src/view_pcd.cpp)
 target_link_libraries(arvc_view_pcd ${PCL_LIBRARIES})
 
-
 add_executable(arvc_rename_files src/rename_files.cpp)
 target_link_libraries(arvc_rename_files)
 
@@ -54,3 +53,6 @@ target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(arvc_get_num_of_planes src/get_num_of_planes.cpp)
 target_link_libraries(arvc_get_num_of_planes ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(arvc_check_dataset src/check_dataset.cpp)
+target_link_libraries(arvc_check_dataset ${catkin_LIBRARIES} ${PCL_LIBRARIES})
