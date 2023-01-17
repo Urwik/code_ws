@@ -23,12 +23,6 @@ namespace fs = std::filesystem;
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
 
-#define RESET   "\033[0m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"  
-#define YELLOW  "\033[33m"
-#define BLUE    "\033[34m"
-
 typedef pcl::PointXYZI PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
@@ -37,9 +31,7 @@ pcl::PLYReader ply_reader;
 fs::path current_path;
 std::vector<int> n_points;
 std::vector<std::string> cloud_names;
-std::vector<std::string> error_files;
-std::vector<std::string> readed_files;
-std::vector<std::string> duplicated_files;
+
 
 int check_cloud(fs::path input_file)
 {
@@ -68,67 +60,6 @@ int check_cloud(fs::path input_file)
   return 0;
 }
 
-void check_filenames(fs::path current_path_)
-{
-  std::stringstream ss;
-
-  std::cout << "Mising files:" << std::endl;
-  for (int i = 0; i < 10000; i++)
-  {
-    ss.str("");
-    ss << std::setfill('0') << std::setw(5)  << i << ".ply";
-    fs::path file_path = current_path / ss.str();
-
-    if(!fs::exists(file_path))
-      std::cout << ss.str() << std::endl;
-  }
-}
-
-
-int check_labels(fs::path input_file_)
-{
-  PointCloud::Ptr pc (new PointCloud);
-  std::string file_ext = input_file_.extension();
-  std::string filename = input_file_.filename();
-  int correct = 0;
-
-
-  if (file_ext == ".pcd")
-    correct = pcd_reader.read(input_file_.string(), *pc);
-  else if (file_ext == ".ply")
-   correct =  ply_reader.read(input_file_.string(), *pc);
-  else
-    return -1;
-
-  // SAVE INTENSITY VALUES IN A VECTOR
-  std::vector<int> intensity_values;
-  for (auto& point : pc->points)
-    intensity_values.push_back(point.intensity);
-
-  auto max = *std::max_element(intensity_values.begin(), intensity_values.end());
-  auto min = *std::min_element(intensity_values.begin(), intensity_values.end());
-
-
-  if (max != 1 && min!=0){
-    std::cout << RED << "Wrong labels in: " << filename << RESET << std::endl;
-    error_files.push_back(filename);
-  }
-  else
-    std::cout << GREEN << "Correct labels in: " << filename << RESET << std::endl;
-
-  return 0;
-}
-
-
-void check_duplicated(fs::path input_file_)
-{
-  std::string filename = input_file_.filename();
-
-  if (std::count(readed_files.begin(), readed_files.end(), filename)) 
-  {
-    duplicated_files.push_back(filename);
-  }
-}
 
 
 int main(int argc, char **argv)
@@ -136,19 +67,13 @@ int main(int argc, char **argv)
   current_path = fs::current_path();
 
   if(argc < 2)
-  {
-    check_filenames(current_path);
-
     for(const auto &entry : fs::directory_iterator(current_path))
     {
-      check_labels(entry.path());
       check_cloud(entry.path());
     }
-  }
   else
   {
     fs::path input_dir = argv[1];
-    check_labels(input_dir);
     check_cloud(input_dir);
   }
 
@@ -165,20 +90,6 @@ int main(int argc, char **argv)
   std::cout << "Max: " << max << std::endl;
   std::cout << "Min: " << min << std::endl;
   std::cout << "Mean: " << mean << std::endl;
-
-  if(!error_files.empty())
-  {
-    std::cout << "Files with error in its labels: " << std::endl;
-    for (std::string& file : error_files)
-      std::cout << file << std::endl;      
-  }
-
-  if(!duplicated_files.empty())
-  {
-    std::cout << "Duplicated files: " << std::endl;
-    for (std::string& file : duplicated_files)
-      std::cout << file << std::endl;      
-  }
 
 
   if(max != 25000 || min != 25000 || mean != 25000)

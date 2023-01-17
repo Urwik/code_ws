@@ -1,6 +1,6 @@
-// cpp
+// C++
 #include <iostream>
-#include <algorithm>
+#include <stdlib.h>
 #include <filesystem>
 
 
@@ -20,51 +20,65 @@ typedef pcl::PointCloud<PointT> PointCloud;
 pcl::visualization::PCLVisualizer::Ptr pclVisualizer (new pcl::visualization::PCLVisualizer ("PCL Visualizer"));
 
 // ************************************************************************** //
-namespace fs = boost::filesystem;
-
+namespace fs = std::filesystem;
+pcl::PCDReader pcd_reader;
+pcl::PLYReader ply_reader;
 ////////////////////////////////////////////////////////////////////////////////
+
+void plotCloud(fs::path path_)
+{
+  PointCloud::Ptr pc (new PointCloud);
+  std::string file_ext = path_.extension();
+  
+  if (file_ext == ".pcd")
+    pcd_reader.read(path_.string(), *pc);
+  else if (file_ext == ".ply")
+    ply_reader.read(path_.string(), *pc);
+  else
+    std::cout << "Format not compatible" << std::endl;
+
+  
+
+  
+
+  std::stringstream ss;
+  ss.str("");
+  ss << path_.stem() << ".cam";
+  std::string name = path_.stem();
+  std::string new_name = name + ".cam"; 
+  fs::path param_path = path_.parent_path() / new_name;
+  std::cout << "Loading params from: " << param_path.string() << std::endl;
+
+  pclVisualizer->initCameraParameters();
+  pclVisualizer->loadCameraParameters(param_path);
+  pclVisualizer->updateCamera();
+  pclVisualizer->addPointCloud<PointT>(pc, "cloud");
+
+  while (!pclVisualizer->wasStopped())
+  {
+    pclVisualizer->spinOnce(100);
+  }
+  
+}
+
 
 
 int main(int argc, char **argv)
 {
   // Get handlres for source and target cloud data /////////////////////////////
   fs::path current_path = fs::current_path();
-  pcl::PCDReader cloud_reader;
-  PointCloud::Ptr cloud (new PointCloud);
-  bool button = false;
-
 
   if(argc < 2)
   {
     for(const auto &entry : fs::directory_iterator(current_path))
     {
-      cloud_reader.read(entry.path().string(), *cloud);
-      pclVisualizer->addPointCloud<PointT>(cloud, "cloud");
-      
-      button = false;
-      while(!button)
-      {
-        if(std::getchar() == '\n')
-          button = true;
-        else
-          pclVisualizer->spinOnce(100);
-      }
-      
-      pclVisualizer->removeAllPointClouds();
-
+      plotCloud(entry.path());
     }
   }
   else
   {
-    std::string filename = argv[1];
-    // fs::path abs_file_path;
-    // abs_file_path = current_path.c_str() + '/' + filename;
-
-    cloud_reader.read(filename, *cloud);
-    pclVisualizer->addPointCloud<PointT> (cloud, "cloud");
-
-    while (!pclVisualizer->wasStopped())
-      pclVisualizer->spinOnce(100);
+    fs::path input_file = current_path / argv[1];
+    plotCloud(input_file);
   }
 
   return 0;

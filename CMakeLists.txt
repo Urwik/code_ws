@@ -10,7 +10,7 @@ find_package(PCL 1.3 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 
-include_directories(${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS})
 add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS})
 
@@ -25,6 +25,9 @@ target_link_libraries(arvc_bag_manage ${catkin_LIBRARIES})
 add_executable(arvc_check_dataset src/datasets/check_dataset.cpp)
 target_link_libraries(arvc_check_dataset ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(arvc_check_dataset_normals src/datasets/check_dataset_normals.cpp)
+target_link_libraries(arvc_check_dataset_normals ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(arvc_rename_files src/datasets/rename_files.cpp)
 target_link_libraries(arvc_rename_files)
 
@@ -32,11 +35,20 @@ target_link_libraries(arvc_rename_files)
 add_executable(arvc_pcd2ply src/pointclouds/pcd2ply.cpp)
 target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 
+add_executable(arvc_compute_normals src/pointclouds/compute_normals.cpp)
+target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
+
 add_executable(arvc_view_ply src/pointclouds/view_ply.cpp)
 target_link_libraries(arvc_view_ply ${PCL_LIBRARIES})
 
 add_executable(arvc_view_pcd src/pointclouds/view_pcd.cpp)
 target_link_libraries(arvc_view_pcd ${PCL_LIBRARIES})
+
+add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
+target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
+
+add_executable(arvc_view_cloud_normals src/pointclouds/view_cloud_normals.cpp)
+target_link_libraries(arvc_view_cloud_normals ${PCL_LIBRARIES})
 
 add_executable(arvc_view_pcd_plane_by_plane src/pointclouds/view_pcd_plane_by_plane.cpp)
 target_link_libraries(arvc_view_pcd_plane_by_plane ${catkin_LIBRARIES} ${PCL_LIBRARIES})
