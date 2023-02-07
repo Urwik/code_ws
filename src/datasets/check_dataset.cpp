@@ -184,7 +184,7 @@ int main(int argc, char **argv)
   if(max != 25000 || min != 25000 || mean != 25000)
   {
     std::cout << "Dataset contains errors:" << std::endl;
-    std::cout << "Clouds with not enough points" << std::endl;
+    std::cout << "Clouds with wrong num of points" << std::endl;
     for(auto name : cloud_names)
       std::cout << name << std::endl;
   }

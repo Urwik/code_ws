@@ -62,24 +62,37 @@ PointCloud::Ptr readCloud(fs::path path_)
 
 int getPlaneCount(PointCloud::Ptr &cloud)
 {
+  std::vector<int> o_labels;
   std::vector<int> labels;
+  int THRESHOLD = 10;
 
   for(const auto& point : cloud->points)
-    labels.push_back(point.label);
+    o_labels.push_back(point.label);
 
-  int count;
+  labels = o_labels;
   std::sort(labels.begin(), labels.end());
-  count = std::unique(labels.begin(), labels.end()) - labels.begin();
+  auto last = std::unique(labels.begin(), labels.end());
+  labels.erase(last, labels.end());
 
-  return count;
+  int plane_count = 0;
+  for(int label : labels)
+  {
+    if(std::count(o_labels.begin(), o_labels.end(), label) >= THRESHOLD)
+      plane_count++;
+  }
+
+  // Substract 1 for the label 0 which means no plane.
+  return plane_count - 1;
 }
 
-void writePlaneCount(std::vector<std::string> filename, std::vector<int> plane_count){
+void writePlaneCount(std::vector<std::string> file_names, std::vector<int> plane_count){
   std::ofstream myfile;
   myfile.open("planes_count.csv");
+  
+  myfile << "File" << "," << "Planes" << "\n";
 
-  for (size_t i = 0; i < filename.size(); i++)
-    myfile << filename[i] << "," << plane_count[i] << "\n";
+  for (size_t i = 0; i < file_names.size(); i++)
+    myfile << file_names[i] << "," << plane_count[i] << "\n";
 
   myfile.close();
 }
@@ -105,9 +118,10 @@ int main(int argc, char **argv)
     for(const fs::path &entry : tq::tqdm(path_vector))
     {
       cloud_in = readCloud(entry);
-      filenames.push_back(entry.filename().string());
+      filenames.push_back(entry.stem().string());
       plane_count.push_back(getPlaneCount(cloud_in));
     }
+    std::cout << std::endl; // '\n' after tqdm
 
     writePlaneCount(filenames, plane_count);
   }
@@ -119,5 +133,6 @@ int main(int argc, char **argv)
     std::cout << "Cloud " << entry.filename().string() << " : " << getPlaneCount(cloud_in) << std::endl;
   }
 
+  
   return 0;
 }

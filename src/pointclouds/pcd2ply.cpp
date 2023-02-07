@@ -4,6 +4,7 @@
 #include <filesystem>
 
 // PCL
+#include <pcl/common/common.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/io/file_io.h>
@@ -16,12 +17,14 @@
   // PCL FILTERS
 #include <pcl/filters/normal_space.h>
 
+#include "tqdm.hpp"
+
 namespace fs = std::filesystem;
 
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
 
-typedef pcl::PointXYZI PointT;
+typedef pcl::PointXYZLNormal PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
 pcl::PCDReader pcd_reader;
@@ -30,6 +33,28 @@ pcl::RandomSample<PointT> rand_filter;
 pcl::PassThrough<PointT> pass;
 fs::path current_path;
 fs::path ply_path;
+
+PointCloud::Ptr readCloud(fs::path path_)
+{
+  PointCloud::Ptr cloud (new PointCloud);
+  std::string file_ext = path_.extension();
+
+  if (file_ext == ".pcd")
+  {
+    pcl::PCDReader pcd_reader;
+    pcd_reader.read(path_.string(), *cloud);
+  }
+  else if (file_ext == ".ply")
+  {
+    pcl::PLYReader ply_reader;
+    ply_reader.read(path_.string(), *cloud);
+  }
+  else
+    std::cout << "Format not compatible, it should be .pcd or .ply" << std::endl;
+
+  return cloud;
+}
+
 
 void read_txt(fs::path input_file)
 {
@@ -79,44 +104,64 @@ void read_txt(fs::path input_file)
   fs::remove(tmp_file_path);
 }
 
-void pcd_to_ply(fs::path input_file, bool filter = false, int npoints = 4000, bool binary = true)
+
+void pcd_to_ply(PointCloud::Ptr &cloud, const std::string filename, bool binary = true)
 {
-  std::cout << "Parsing file " << input_file.filename() << std::endl;
-  //CLOUD
-  PointCloud::Ptr pc (new PointCloud);
-
-  //FILTER
-  rand_filter.setSample((unsigned int) npoints);
-  rand_filter.setSeed(std::rand());
-
-  //DIRECTORIES
-  std::string file_ext, in_filename, out_filename, out_filename_path;
+  std::string out_filename;
   fs::path out_file_path;
+  current_path = fs::current_path();
+  ply_path = current_path.parent_path() / "ply_xyzlabelnormal";
+  if(!fs::exists(ply_path))
+  fs::create_directory(ply_path);
 
-  file_ext = input_file.extension();
-  in_filename = input_file.stem();
-  out_filename = in_filename + ".ply";
+  out_filename = filename + ".ply";
   out_file_path = ply_path / out_filename;
 
-  //READ AND WRITE
-
-  if (file_ext == ".pcd"){
-    // if(pcd_reader.read(input_file.string(), *pc) != 0)
-    // {
-    //   while(pcd_reader.read(input_file.string(), *pc) != 0)
-    //     read_txt(input_file);
-    // }
-
-    pcd_reader.read(input_file.string(), *pc);
-    if (filter)
-    {
-      rand_filter.setInputCloud(pc);
-      rand_filter.filter(*pc);
-    }
-
-    ply_writer.write(out_file_path.string(), *pc, binary, false);
-  }
+  ply_writer.write(out_file_path.string(), *cloud, binary, false);
 }
+
+
+PointCloud::Ptr downSampleCloud(PointCloud::Ptr &cloud_in, const int target_points, const std::string filename)
+{
+  PointCloud::Ptr cloud_out (new PointCloud);
+  PointCloud::Ptr cloud_floor (new PointCloud);
+  PointCloud::Ptr cloud_structure (new PointCloud);
+
+  int points_remove = cloud_in->points.size() - target_points;
+
+  if(points_remove < 0)
+  {
+    std::cout << "\nThe number of target points is higher than the actual points "
+    "in the cloud "<< filename <<", reduce the number of target points" << std::endl;
+    // exit(EXIT_FAILURE);
+  }
+  else
+  {
+    pcl::Indices uselsess;
+    pcl::removeNaNFromPointCloud<PointT>(*cloud_in, *cloud_in, uselsess);
+    pcl::removeNaNNormalsFromPointCloud<PointT>(*cloud_in, *cloud_in, uselsess);
+
+    pcl::PassThrough<PointT> pass;
+    pass.setInputCloud(cloud_in);
+    pass.setFilterFieldName("label");
+    pass.setFilterLimits(0, 0);
+    pass.setNegative(false);
+    pass.filter(*cloud_floor);
+    pass.setNegative(true);
+    pass.filter(*cloud_structure);
+
+    pcl::RandomSample<PointT> rs;
+    rs.setInputCloud(cloud_floor);
+    rs.setSample((unsigned int) cloud_floor->points.size()- points_remove);
+    rs.setSeed(std::rand());
+    rs.filter(*cloud_floor);
+
+    *cloud_out = *cloud_structure + *cloud_floor;
+  }
+
+  return cloud_out;
+}
+
 
 void read_file (fs::path input_file){
   PointCloud::Ptr pc (new PointCloud);
@@ -127,24 +172,50 @@ void read_file (fs::path input_file){
 }
 
 
-
 int main(int argc, char **argv)
 {
-  current_path = fs::current_path();
-  ply_path = current_path.parent_path() / "ply";
+  fs::path current_dir = fs::current_path();
 
-  if(!fs::exists(ply_path))
-    fs::create_directory(ply_path);
+  PointCloud::Ptr cloud (new PointCloud);
+  PointCloud::Ptr sampled_cloud (new PointCloud);
+  std::string filename;
+
+  bool DOWNSAMPLE = true;
 
   if(argc < 2)
-    for(const auto &entry : fs::directory_iterator(current_path))
+  {
+    std::vector<fs::path> path_vector;
+    for(const auto &entry : fs::directory_iterator(current_dir))
     {
-      pcd_to_ply(entry.path(), true, 25000, true);
+      if(entry.path().extension() == ".pcd" || entry.path().extension() == ".ply")
+        path_vector.push_back(entry.path());
     }
+
+    for(const fs::path &entry : tq::tqdm(path_vector))
+    {
+      filename = entry.stem().string();
+      cloud = readCloud(entry);
+      if (DOWNSAMPLE)
+      {
+        sampled_cloud = downSampleCloud(cloud, 25000, filename);
+        pcd_to_ply(sampled_cloud, filename);
+      }
+      else
+        pcd_to_ply(cloud, filename);
+    }
+    std::cout << std::endl;
+  }
   else
   {
-    fs::path input_dir = argv[1];
-    pcd_to_ply(input_dir, true, 25000, true);
+    fs::path entry = argv[1];
+    cloud = readCloud(entry);
+    if (DOWNSAMPLE)
+    {
+      sampled_cloud = downSampleCloud(cloud, 25000, entry.stem().string());
+      pcd_to_ply(sampled_cloud, entry.stem().string());
+    }
+    else
+      pcd_to_ply(cloud, entry.stem().string());
   }
 
   return 0;

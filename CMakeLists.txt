@@ -31,6 +31,10 @@ target_link_libraries(arvc_check_dataset_normals ${catkin_LIBRARIES} ${PCL_LIBRA
 add_executable(arvc_rename_files src/datasets/rename_files.cpp)
 target_link_libraries(arvc_rename_files)
 
+add_executable(arvc_compute_plane_count src/datasets/compute_plane_count.cpp)
+target_link_libraries(arvc_compute_plane_count ${PCL_LIBRARIES})
+
+
 # POINTCLOUDS .................................................................#
 add_executable(arvc_pcd2ply src/pointclouds/pcd2ply.cpp)
 target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
@@ -38,11 +42,8 @@ target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 add_executable(arvc_compute_normals src/pointclouds/compute_normals.cpp)
 target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 
-add_executable(arvc_view_ply src/pointclouds/view_ply.cpp)
-target_link_libraries(arvc_view_ply ${PCL_LIBRARIES})
-
-add_executable(arvc_view_pcd src/pointclouds/view_pcd.cpp)
-target_link_libraries(arvc_view_pcd ${PCL_LIBRARIES})
+add_executable(arvc_filter_ground_floor src/pointclouds/filter_ground_floor.cpp)
+target_link_libraries(arvc_filter_ground_floor ${PCL_LIBRARIES})
 
 add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
 target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
@@ -53,11 +54,11 @@ target_link_libraries(arvc_view_cloud_normals ${PCL_LIBRARIES})
 add_executable(arvc_view_pcd_plane_by_plane src/pointclouds/view_pcd_plane_by_plane.cpp)
 target_link_libraries(arvc_view_pcd_plane_by_plane ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-add_executable(arvc_pcd_to_pcdNormals src/pointclouds/pcd_to_pcdNormals.cpp)
-target_link_libraries(arvc_pcd_to_pcdNormals ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-
 add_executable(arvc_plot_by_index src/pointclouds/plot_by_index.cpp)
 target_link_libraries(arvc_plot_by_index ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(arvc_random_sampling src/pointclouds/random_sampling.cpp)
+target_link_libraries(arvc_random_sampling ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(arvc_plot_by_binary_label src/pointclouds/plot_by_binary_label.cpp)
 target_link_libraries(arvc_plot_by_binary_label ${catkin_LIBRARIES} ${PCL_LIBRARIES})

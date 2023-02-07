@@ -11,7 +11,7 @@
 #include <pcl/filters/extract_indices.h>
 
 // Type Definitions ////////////////////////////////////////////////////////////
-typedef pcl::PointXYZI PointT;
+typedef pcl::PointXYZL PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 typedef pcl::visualization::PCLVisualizer pclVis;
 
@@ -34,7 +34,7 @@ pcl::PointIndices::Ptr findValue(PointCloud::Ptr cloud, const int value)
   int index=0;
   for (auto point : *cloud)
   {
-    if(point.intensity == value)
+    if(point.label == value)
     {
       inliers->indices.push_back(index);
     }

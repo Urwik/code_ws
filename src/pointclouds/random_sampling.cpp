@@ -10,6 +10,7 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/filters/random_sample.h>
 
 #include "tqdm.hpp"
 
@@ -50,43 +51,19 @@ PointCloud::Ptr readCloud(fs::path path_)
 }
 
 
-pcl::PointCloud<pcl::PointXYZLNormal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZL>::Ptr &cloud_in)
+PointCloud::Ptr randomSample(PointCloud::Ptr &cloud_in)
 {
-  pcl::PointCloud<pcl::PointXYZLNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZLNormal>);
-  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
-  pcl::search::KdTree<pcl::PointXYZL>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZL> ());
-  pcl::NormalEstimation<pcl::PointXYZL, pcl::Normal> ne;
-  
-  ne.setInputCloud(cloud_in);
-  ne.setSearchMethod(tree);
-  ne.setKSearch(10);
-  // ne.setRadiusSearch(0.1);
-  ne.compute(*cloud_normals);
+  PointCloud::Ptr out_cloud (new PointCloud);
+  pcl::RandomSample<PointT> rs;
+  rs.setInputCloud(cloud_in);
+  rs.setSample(25000);
+  rs.filter(*out_cloud);
 
-  pcl::concatenateFields(*cloud_in, *cloud_normals, *cloud_out); 
-
-  return cloud_out;
+  return out_cloud;
 }
 
 
-pcl::PointCloud<pcl::PointXYZL>::Ptr parseToXYZLabel(PointCloud::Ptr &cloud_in)
-{
-  pcl::PointCloud<pcl::PointXYZL>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZL>);
-  cloud_out->points.resize(cloud_in->points.size());
-
-  for (size_t i = 0; i < cloud_in->size(); i++)
-  {
-    cloud_out->points[i].x = cloud_in->points[i].x;
-    cloud_out->points[i].y = cloud_in->points[i].y;
-    cloud_out->points[i].z = cloud_in->points[i].z;
-    cloud_out->points[i].label = (uint32_t) cloud_in->points[i].intensity;
-  }
-
-  return cloud_out;  
-}
-
-
-void writeCloud(pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud_in, fs::path entry)
+void writeCloud(PointCloud::Ptr &cloud_in, fs::path entry)
 {
   pcl::PCDWriter pcd_writer;
   
@@ -97,15 +74,14 @@ void writeCloud(pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud_in, fs::path e
   std::string filename = entry.stem().string() + ".pcd";
 
   abs_file_path = abs_file_path / filename;
-  pcd_writer.write(abs_file_path.string(), *cloud_in, true);
+  pcd_writer.write(entry, *cloud_in, true);
 }
 
 
 int main(int argc, char **argv)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::PointCloud<pcl::PointXYZL>::Ptr cloud_in_label (new pcl::PointCloud<pcl::PointXYZL>);
-  pcl::PointCloud<pcl::PointXYZLNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZLNormal>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZI>);
 
   fs::path current_dir = fs::current_path();
 
@@ -120,11 +96,10 @@ int main(int argc, char **argv)
 
     for(const fs::path &entry : tq::tqdm(path_vector))
     {
-      std::cout << entry.filename() << std::endl;
       cloud_in = readCloud(entry);
-      cloud_in_label = parseToXYZLabel(cloud_in);
-      cloud_out = computeNormals(cloud_in_label);
+      cloud_out = randomSample(cloud_in);
       writeCloud(cloud_out, entry);
+
     }
 
 
@@ -133,8 +108,7 @@ int main(int argc, char **argv)
   {
     fs::path entry = argv[1];
     cloud_in = readCloud(entry);
-    cloud_in_label = parseToXYZLabel(cloud_in);
-    cloud_out = computeNormals(cloud_in_label);
+    cloud_out = randomSample(cloud_in);
     writeCloud(cloud_out, entry);
   }
 
