@@ -42,8 +42,11 @@ target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 add_executable(arvc_compute_normals src/pointclouds/compute_normals.cpp)
 target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 
-add_executable(arvc_filter_ground_floor src/pointclouds/filter_ground_floor.cpp)
-target_link_libraries(arvc_filter_ground_floor ${PCL_LIBRARIES})
+add_executable(arvc_filter_ground_by_density_and_cluster_volume src/pointclouds/filter_ground_by_density_and_cluster_volume.cpp)
+target_link_libraries(arvc_filter_ground_by_density_and_cluster_volume ${PCL_LIBRARIES})
+
+add_executable(arvc_filter_ground_by_RANSAC src/pointclouds/filter_ground_by_RANSAC.cpp)
+target_link_libraries(arvc_filter_ground_by_RANSAC ${PCL_LIBRARIES})
 
 add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
 target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
@@ -68,6 +71,9 @@ target_link_libraries(arvc_replace_field ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(arvc_get_num_of_planes src/pointclouds/get_num_of_planes.cpp)
 target_link_libraries(arvc_get_num_of_planes ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(arvc_compute_roughness src/pointclouds/roughness.cpp)
+target_link_libraries(arvc_compute_roughness ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(arvc_main src/main.cpp)
 target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})

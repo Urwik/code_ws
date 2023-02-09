@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <vector>
+#include <math.h>
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -29,7 +30,7 @@ namespace fs = std::filesystem;
 #define YELLOW  "\033[33m"
 #define BLUE    "\033[34m"
 
-typedef pcl::PointXYZI PointT;
+typedef pcl::PointXYZLNormal PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 
 pcl::PCDReader pcd_reader;
@@ -68,6 +69,7 @@ int check_cloud(fs::path input_file)
   return 0;
 }
 
+
 void check_filenames(fs::path current_path_)
 {
   std::stringstream ss;
@@ -100,21 +102,18 @@ int check_labels(fs::path input_file_)
   else
     return -1;
 
-  // SAVE INTENSITY VALUES IN A VECTOR
-  std::vector<int> intensity_values;
+  // CHECK IF ALL LABLES ARE A NUMBER
   for (auto& point : pc->points)
-    intensity_values.push_back(point.intensity);
-
-  auto max = *std::max_element(intensity_values.begin(), intensity_values.end());
-  auto min = *std::min_element(intensity_values.begin(), intensity_values.end());
-
-
-  if (max != 1 && min!=0){
-    std::cout << RED << "Wrong labels in: " << filename << RESET << std::endl;
-    error_files.push_back(filename);
-  }
-  else
-    std::cout << GREEN << "Correct labels in: " << filename << RESET << std::endl;
+  {
+    if(std::isnan(point.label))
+    {
+      std::cout << RED << "Wrong labels in: " << filename << RESET << std::endl;
+      error_files.push_back(filename);
+      return -1;
+    }
+  } 
+    
+  std::cout << GREEN << "Correct labels in: " << filename << RESET << std::endl;
 
   return 0;
 }
@@ -137,7 +136,7 @@ int main(int argc, char **argv)
 
   if(argc < 2)
   {
-    check_filenames(current_path);
+    // check_filenames(current_path);
 
     for(const auto &entry : fs::directory_iterator(current_path))
     {
