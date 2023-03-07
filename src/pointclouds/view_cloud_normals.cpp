@@ -72,7 +72,7 @@ void plotCloud(PointCloud::Ptr &cloud_in)
   pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_color (cloud_in, 0, 155, 0);
 
   vis.addPointCloud<PointT>(cloud_in, cloud_color, "cloud");
-  vis.addPointCloudNormals<PointT, pcl::Normal>(cloud_in, cloud_normals, 10, 0.5, "normals");
+  vis.addPointCloudNormals<PointT, pcl::Normal>(cloud_in, cloud_normals, 30, 0.1, "normals");
 
   while (!vis.wasStopped())
     vis.spinOnce(100);

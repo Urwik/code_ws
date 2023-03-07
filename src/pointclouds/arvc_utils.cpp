@@ -1,6 +1,8 @@
-// #pragma once
+#pragma once
 // cpp
 #include <iostream>
+#include <algorithm>
+#include <filesystem>
 
 // PCL
 #include <pcl/common/common.h>
@@ -64,7 +66,6 @@ namespace arvc
 
 
 
-
 ////////////////////////////////////////////////////////////////////////////////  
   pcl::PointCloud<pcl::PointXYZL>::Ptr
   parseIntensityToLabel(pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud_in)
@@ -83,7 +84,9 @@ namespace arvc
     return cloud_out;  
   }
 
-  ////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
   pcl::PointCloud<pcl::PointXYZ>::Ptr 
   extractIndices(
     pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in,
@@ -97,6 +100,22 @@ namespace arvc
 
     return cloud_out;
   }
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+  pcl::PointCloud<pcl::PointXYZLNormal>::Ptr
+  voxelFilter(pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud_in)
+  {
+    pcl::PointCloud<pcl::PointXYZLNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZLNormal>);
+    pcl::VoxelGrid<pcl::PointXYZLNormal> sor;
+    sor.setInputCloud(cloud_in);
+    sor.setLeafSize(0.1f, 0.1f, 0.1f);
+    sor.filter(*cloud_out);
+
+    return cloud_out;
+  }
+
 
 ////////////////////////////////////////////////////////////////////////////////  
   pcl::PointCloud<pcl::PointXYZ>::Ptr
@@ -114,6 +133,7 @@ namespace arvc
 
     return cloud_out;  
   }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -139,6 +159,7 @@ namespace arvc
 
     return inliers;
   }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -261,6 +282,48 @@ namespace arvc
 
 
 ////////////////////////////////////////////////////////////////////////////////
+
+//input: ratio is between 0.0 to 1.0
+//output: rgb color
+struct myRgb{
+  int r;
+  int g;
+  int b;
+};
+myRgb rgb(double ratio)
+{
+  //we want to normalize ratio so that it fits in to 6 regions
+  //where each region is 256 units long
+  int normalized = int(ratio * 256 * 6);
+
+  //find the region for this position
+  int region = normalized / 256;
+
+  //find the distance to the start of the closest region
+  int x = normalized % 256;
+
+  uint8_t r = 0, g = 0, b = 0;
+  switch (region)
+  {
+  case 0: r = 255; g = 0;   b = 0;   g += x; break;
+  case 1: r = 255; g = 255; b = 0;   r -= x; break;
+  case 2: r = 0;   g = 255; b = 0;   b += x; break;
+  case 3: r = 0;   g = 255; b = 255; g -= x; break;
+  case 4: r = 0;   g = 0;   b = 255; r += x; break;
+  case 5: r = 255; g = 0;   b = 255; b -= x; break;
+  }
+
+  myRgb color;
+  color.r = r;
+  color.g = g;
+  color.b = b;
+
+  return color;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
   getColoredCloudFromRoughness(
     pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in,
@@ -269,13 +332,41 @@ namespace arvc
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZRGB>);
     cloud_out->resize(cloud_in->size());
 
+    float rough;
+    std::vector<float> roughness_copy = roughness;
+    roughness_copy.erase(std::remove(roughness_copy.begin(), roughness_copy.end(), 100), roughness_copy.end());
+    float max_roughness = *std::max_element(roughness_copy.begin(), roughness_copy.end());
+
+
     for (size_t i = 0; i < cloud_in->size(); i++)
     {
       cloud_out->points[i].x = cloud_in->points[i].x;
       cloud_out->points[i].y = cloud_in->points[i].y;
       cloud_out->points[i].z = cloud_in->points[i].z;
+
+      if (roughness[i] == 100)
+      {
+        cloud_out->points[i].r = 255;
+        cloud_out->points[i].g = 0;
+        cloud_out->points[i].b = 0;
+      }
+      else
+      {
+        myRgb color_gradient;
+        color_gradient = rgb(roughness[i]/max_roughness);
+        cloud_out->points[i].r = color_gradient.r;
+        cloud_out->points[i].g = color_gradient.g;
+        cloud_out->points[i].b = color_gradient.b;
+      }
     }
-    
+
+    return cloud_out;    
   }
+
+
+
+
+
+
 
 }

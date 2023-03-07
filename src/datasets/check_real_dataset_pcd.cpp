@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <vector>
+#include <math.h>
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -18,8 +19,7 @@
   // PCL FILTERS
 #include <pcl/filters/normal_space.h>
 
-#include "tqdm.hpp"
-
+#include "../pointclouds/arvc_utils.cpp"
 
 namespace fs = std::filesystem;
 
@@ -32,9 +32,8 @@ namespace fs = std::filesystem;
 #define YELLOW  "\033[33m"
 #define BLUE    "\033[34m"
 
-typedef pcl::PointNormal PointT;
+typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
-
 
 PointCloud::Ptr readCloud(fs::path path_)
 {
@@ -58,20 +57,17 @@ PointCloud::Ptr readCloud(fs::path path_)
 }
 
 
-bool normals_correct(PointCloud::Ptr &cloud)
+int check_nan_points(PointCloud::Ptr &cloud_in)
 {
-  for(const auto& point : cloud->points)
+  int nan_count = 0;
+  for (auto& point : cloud_in->points)
   {
-    if(isnan(point.normal_x) || isnan(point.normal_y) || isnan(point.normal_z) )
-      return false;
+    if( std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z))
+      nan_count++;
+  } 
 
-    else
-      continue;
-  }
-
-  return true;
+  return nan_count;    
 }
-
 
 
 int main(int argc, char **argv)
@@ -82,7 +78,6 @@ int main(int argc, char **argv)
 
   fs::path current_dir = fs::current_path();
 
-  std::cout << "¿Normals are Correct?:" << std::endl;
   std::cout << std::boolalpha;   
   if(argc < 2)
   {
@@ -95,14 +90,18 @@ int main(int argc, char **argv)
     for(const fs::path &entry : path_vector)
     {
       cloud_in = readCloud(entry);
-      std::cout << entry.stem() << ": " << normals_correct(cloud_in) << std::endl;
+      int points = check_nan_points(cloud_in);
+      std::cout << entry.stem() << ": " << points << std::endl;
     }
   }
 
   else
   {
+    std::cout << "Nan Points in Cloud:" << std::endl;
     fs::path entry = argv[1];
     cloud_in = readCloud(entry);
+    int points = check_nan_points(cloud_in);
+    std::cout << entry.filename().string() << ": " << points << std::endl;
   }
 
   return 0;

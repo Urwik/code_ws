@@ -34,6 +34,14 @@ target_link_libraries(arvc_rename_files)
 add_executable(arvc_compute_plane_count src/datasets/compute_plane_count.cpp)
 target_link_libraries(arvc_compute_plane_count ${PCL_LIBRARIES})
 
+add_executable(arvc_compute_label_weights src/datasets/compute_label_weights.cpp)
+target_link_libraries(arvc_compute_label_weights ${PCL_LIBRARIES})
+
+add_executable(arvc_check_num_points src/datasets/check_num_points.cpp)
+target_link_libraries(arvc_check_num_points ${PCL_LIBRARIES})
+
+add_executable(arvc_check_real_dataset_pcd src/datasets/check_real_dataset_pcd.cpp)
+target_link_libraries(arvc_check_real_dataset_pcd ${PCL_LIBRARIES})
 
 # POINTCLOUDS .................................................................#
 add_executable(arvc_pcd2ply src/pointclouds/pcd2ply.cpp)
@@ -41,6 +49,9 @@ target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 
 add_executable(arvc_compute_normals src/pointclouds/compute_normals.cpp)
 target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
+
+add_executable(arvc_compute_normals_XYZ src/pointclouds/compute_normals_XYZ.cpp)
+target_link_libraries(arvc_compute_normals_XYZ ${PCL_LIBRARIES})
 
 add_executable(arvc_filter_ground_by_density_and_cluster_volume src/pointclouds/filter_ground_by_density_and_cluster_volume.cpp)
 target_link_libraries(arvc_filter_ground_by_density_and_cluster_volume ${PCL_LIBRARIES})
@@ -50,6 +61,9 @@ target_link_libraries(arvc_filter_ground_by_RANSAC ${PCL_LIBRARIES})
 
 add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
 target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
+
+add_executable(arvc_range_filter src/pointclouds/range_filter.cpp)
+target_link_libraries(arvc_range_filter ${PCL_LIBRARIES})
 
 add_executable(arvc_view_cloud_normals src/pointclouds/view_cloud_normals.cpp)
 target_link_libraries(arvc_view_cloud_normals ${PCL_LIBRARIES})
@@ -74,6 +88,10 @@ target_link_libraries(arvc_get_num_of_planes ${catkin_LIBRARIES} ${PCL_LIBRARIES
 
 add_executable(arvc_compute_roughness src/pointclouds/roughness.cpp)
 target_link_libraries(arvc_compute_roughness ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(arvc_pointcloud2_to_eigen src/pointclouds/pointcloud2_to_eigen.cpp)
+target_link_libraries(arvc_pointcloud2_to_eigen ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 
 add_executable(arvc_main src/main.cpp)
 target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})

@@ -20,7 +20,7 @@
 #define BLUE    "\033[34m"
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
-typedef pcl::PointXYZI PointT;
+typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 // ************************************************************************** //
 namespace fs = std::filesystem;

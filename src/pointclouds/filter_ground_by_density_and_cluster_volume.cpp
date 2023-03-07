@@ -241,8 +241,8 @@ filterGroundByVolume(PointCloud::Ptr &cloud_in, std::vector<pcl::PointIndices> c
     extract.setNegative(false);
     extract.filter(*tmp_cloud);
 
-    arvcBoundBox bound_box;
-    bound_box = computeBoundingBox(tmp_cloud);
+    arvc::arvcBoundBox bound_box;
+    bound_box = arvc::computeBoundingBox(tmp_cloud);
     float bb_volumen = bound_box.width * bound_box.height * bound_box.depth;
 
     if(bb_volumen > min_volumen)
@@ -377,7 +377,7 @@ int main(int argc, char **argv)
     ////////////////////////////////////////////////////////////////////////////
     // VISUALIZATION
     pcl::visualization::PCLVisualizer vis ("PCL Visualizer");
-    
+    pcl::visualization::PCLVisualizer vis2 ("vis2");
     // Define ViewPorts
     int v1(0);
     int v2(0);
@@ -394,17 +394,18 @@ int main(int argc, char **argv)
     // vis.createViewPort(0.66,0,1,1, v3);
 
     // 4 DISTRIBUTED VIEWPORTS
-    vis.createViewPort(0,0.5,0.5,1, v1);
-    vis.createViewPort(0.5,0.5,1,1, v2);
-    vis.createViewPort(0,0,0.5,0.5, v3);
-    vis.createViewPort(0.5,0,1,0.5, v4);
+    // vis.createViewPort(0,0.5,0.5,1, v1);
+    // vis.createViewPort(0.5,0.5,1,1, v2);
+    // vis.createViewPort(0,0,0.5,0.5, v3);
+    // vis.createViewPort(0.5,0,1,0.5, v4);
 
     vis.addPointCloud<PointT>(cloud_in, "original_cloud", v1);
-    vis.addPointCloud<pcl::PointXYZRGB>(regrow_data.colored_cloud, "regrow_cloud", v2);
-    vis.addPointCloud<pcl::PointXYZRGB>(regrow_data2.colored_cloud, "regrow_cloud2", v3);
+    // vis.addPointCloud<pcl::PointXYZRGB>(regrow_data.colored_cloud, "regrow_cloud", v2);
+    // vis.addPointCloud<pcl::PointXYZRGB>(regrow_data2.colored_cloud, "regrow_cloud2", v3);
 
     pcl::visualization::PointCloudColorHandlerCustom<PointT> no_ground_color(no_ground_cloud, 0, 255, 0);
-    vis.addPointCloud<PointT> (no_ground_cloud, no_ground_color, "no ground", v4);
+    // vis.addPointCloud<PointT> (no_ground_cloud, no_ground_color, "no ground", v2);
+    vis2.addPointCloud<PointT> (no_ground_cloud, no_ground_color, "no ground");
 
     while(!vis.wasStopped())
       vis.spinOnce(100);

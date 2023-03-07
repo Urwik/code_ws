@@ -10,7 +10,6 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/features/normal_3d.h>
-#include <pcl/filters/random_sample.h>
 
 #include "tqdm.hpp"
 
@@ -51,39 +50,61 @@ PointCloud::Ptr readCloud(fs::path path_)
 }
 
 
-PointCloud::Ptr randomSample(PointCloud::Ptr &cloud_in)
+pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(PointCloud::Ptr &cloud_in)
 {
-  PointCloud::Ptr out_cloud (new PointCloud);
-  pcl::RandomSample<PointT> rs;
-  rs.setInputCloud(cloud_in);
-  rs.setSample(25000);
-  rs.filter(*out_cloud);
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointNormal>);
+  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+  pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
+  pcl::NormalEstimation<PointT, pcl::Normal> ne;
+  
+  ne.setInputCloud(cloud_in);
+  ne.setSearchMethod(tree);
+  ne.setKSearch(20);
+  // ne.setRadiusSearch(0.1);
+  ne.compute(*cloud_normals);
 
-  return out_cloud;
+  pcl::concatenateFields(*cloud_in, *cloud_normals, *cloud_out); 
+
+  return cloud_out;
 }
 
 
-void writeCloud(PointCloud::Ptr &cloud_in, fs::path entry)
+pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals2(PointCloud::Ptr &cloud_in)
+{
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointNormal>);
+  pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
+  pcl::NormalEstimation<PointT, pcl::PointNormal> ne;
+  
+  ne.setInputCloud(cloud_in);
+  ne.setSearchMethod(tree);
+  ne.setKSearch(30);
+  // ne.setRadiusSearch(0.1);
+  ne.compute(*cloud_out);
+
+  return cloud_out;
+}
+
+
+void writeCloud(pcl::PointCloud<pcl::PointNormal>::Ptr &cloud_in, fs::path entry)
 {
   pcl::PLYWriter ply_writer;
   
-  fs::path abs_file_path = fs::current_path().parent_path() / "ply_xyzsampled";
+  fs::path abs_file_path = fs::current_path().parent_path() / "ply_xyznormal";
   if (!fs::exists(abs_file_path)) 
     fs::create_directory(abs_file_path);
 
   std::string filename = entry.stem().string() + ".ply";
-  
+
   abs_file_path = abs_file_path / filename;
-  ply_writer.write(abs_file_path, *cloud_in, true);
+  ply_writer.write(abs_file_path.string(), *cloud_in, true, false);
 }
 
 
 int main(int argc, char **argv)
 {
-  pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS); //OCULTA TODOS LOS MENSAJES DE PCL
-
+  auto start = std::chrono::high_resolution_clock::now();
   PointCloud::Ptr cloud_in (new PointCloud);
-  PointCloud::Ptr cloud_out (new PointCloud);
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointNormal>);
 
   fs::path current_dir = fs::current_path();
 
@@ -99,21 +120,24 @@ int main(int argc, char **argv)
     for(const fs::path &entry : tq::tqdm(path_vector))
     {
       cloud_in = readCloud(entry);
-      cloud_out = randomSample(cloud_in);
+      cloud_out = computeNormals(cloud_in);
       writeCloud(cloud_out, entry);
-
     }
-
-
   }
   else
   {
     fs::path entry = argv[1];
     cloud_in = readCloud(entry);
-    cloud_out = randomSample(cloud_in);
+    // cloud_in_label = parseToXYZLabel(cloud_in);
+    cloud_out = computeNormals(cloud_in);
+    // COMPUTATION TIME
     writeCloud(cloud_out, entry);
   }
 
+  auto stop = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+  std::cout << "Computation Time: " << duration.count() << " ms" << std::endl;
+  
   std::cout << GREEN << "COMPLETED!!" << RESET << std::endl;
   return 0;
 }

@@ -4,13 +4,15 @@
 #include <filesystem>
 
 // PCL
+#include <pcl/common/common.h>
+#include <pcl/common/distances.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/filters/random_sample.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/extract_indices.h>
 
 #include "tqdm.hpp"
 
@@ -51,16 +53,36 @@ PointCloud::Ptr readCloud(fs::path path_)
 }
 
 
-PointCloud::Ptr randomSample(PointCloud::Ptr &cloud_in)
+pcl::PointIndices::Ptr range_filter(PointCloud::Ptr &cloud_in_, float min_range_, float max_range_)
 {
-  PointCloud::Ptr out_cloud (new PointCloud);
-  pcl::RandomSample<PointT> rs;
-  rs.setInputCloud(cloud_in);
-  rs.setSample(25000);
-  rs.filter(*out_cloud);
+  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 
-  return out_cloud;
+  float range;
+  for (size_t i = 0; i < cloud_in_->points.size(); i++)
+  {
+    range = pcl::squaredEuclideanDistance(pcl::PointXYZ(0,0,0), cloud_in_->points[i]);
+    if (range > min_range_ && range < max_range_ )
+      inliers->indices.push_back(i);
+  }
+  
+  return inliers;
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+  pcl::PointCloud<pcl::PointXYZ>::Ptr 
+  extractIndices(
+    pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in,
+    pcl::PointIndices::Ptr &indices)
+  {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    extract.setInputCloud(cloud_in);
+    extract.setIndices(indices);
+    extract.filter(*cloud_out);
+
+    return cloud_out;
+  }
 
 
 void writeCloud(PointCloud::Ptr &cloud_in, fs::path entry)
@@ -74,7 +96,7 @@ void writeCloud(PointCloud::Ptr &cloud_in, fs::path entry)
   std::string filename = entry.stem().string() + ".ply";
   
   abs_file_path = abs_file_path / filename;
-  ply_writer.write(abs_file_path, *cloud_in, true);
+  ply_writer.write(abs_file_path, *cloud_in, true, false);
 }
 
 
@@ -83,6 +105,7 @@ int main(int argc, char **argv)
   pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS); //OCULTA TODOS LOS MENSAJES DE PCL
 
   PointCloud::Ptr cloud_in (new PointCloud);
+  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
   PointCloud::Ptr cloud_out (new PointCloud);
 
   fs::path current_dir = fs::current_path();
@@ -99,7 +122,8 @@ int main(int argc, char **argv)
     for(const fs::path &entry : tq::tqdm(path_vector))
     {
       cloud_in = readCloud(entry);
-      cloud_out = randomSample(cloud_in);
+      inliers = range_filter(cloud_in, 0.2, 20.0);
+      cloud_out = extractIndices(cloud_in, inliers);
       writeCloud(cloud_out, entry);
 
     }
@@ -110,7 +134,8 @@ int main(int argc, char **argv)
   {
     fs::path entry = argv[1];
     cloud_in = readCloud(entry);
-    cloud_out = randomSample(cloud_in);
+    inliers = range_filter(cloud_in, 0.2, 20.0);
+    cloud_out = extractIndices(cloud_in, inliers);
     writeCloud(cloud_out, entry);
   }
 

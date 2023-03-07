@@ -9,6 +9,7 @@ int main(int argc, char const *argv[])
 {
   pcl::PointCloud<pcl::PointXYZLNormal>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZLNormal>);
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz (new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
   std::vector<float> roughness;
 
   auto start = std::chrono::high_resolution_clock::now();
@@ -42,7 +43,15 @@ int main(int argc, char const *argv[])
     cloud_xyz = arvc::parseXYZLNormalToXYZ(cloud_in);
     for (size_t i = 0; i < cloud_xyz->size(); i++)
       roughness.push_back(arvc::computeRoughness(cloud_xyz, i));
-    
+
+    cloud_rgb = arvc::getColoredCloudFromRoughness(cloud_xyz, roughness);
+
+    pcl::visualization::PCLVisualizer vis;
+    vis.addPointCloud<pcl::PointXYZRGB>(cloud_rgb);
+
+    while(!vis.wasStopped())
+      vis.spinOnce(100);
+
   }
 
   std::cout << GREEN << "COMPLETED!!" << RESET << std::endl;

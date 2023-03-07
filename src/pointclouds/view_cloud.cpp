@@ -39,8 +39,6 @@ void plotCloud(fs::path path_)
 
   
 
-  
-
   std::stringstream ss;
   ss.str("");
   ss << path_.stem() << ".cam";
@@ -52,6 +50,7 @@ void plotCloud(fs::path path_)
   pclVisualizer->initCameraParameters();
   pclVisualizer->loadCameraParameters(param_path);
   pclVisualizer->updateCamera();
+  pclVisualizer->addCoordinateSystem(1.0, "sensor_origin");
   pclVisualizer->addPointCloud<PointT>(pc, "cloud");
 
   while (!pclVisualizer->wasStopped())
@@ -65,6 +64,8 @@ void plotCloud(fs::path path_)
 
 int main(int argc, char **argv)
 {
+  pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS); //OCULTA TODOS LOS MENSAJES DE PCL
+
   // Get handlres for source and target cloud data /////////////////////////////
   fs::path current_path = fs::current_path();
 
