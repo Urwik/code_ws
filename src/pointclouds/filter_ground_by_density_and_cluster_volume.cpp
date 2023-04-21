@@ -34,29 +34,33 @@
 #define GREEN   "\033[32m"  
 #define YELLOW  "\033[33m"
 #define BLUE    "\033[34m"
+
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
 typedef pcl::PointXYZLNormal PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
-// ************************************************************************** //
 namespace fs = std::filesystem;
 
-////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
 struct filterGroundClouds
 {
   pcl::PointCloud<pcl::PointXYZLNormal> ground;
   pcl::PointCloud<pcl::PointXYZLNormal> no_ground;
 };
 
+
+////////////////////////////////////////////////////////////////////////////////
 struct regrow
 {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud;
   std::vector <pcl::PointIndices> clusters; 
 };
 
+
+////////////////////////////////////////////////////////////////////////////////
 PointCloud::Ptr 
-readCloud(fs::path path)
+readCloud (fs::path path)
 {
   PointCloud::Ptr cloud (new PointCloud);
 
@@ -75,30 +79,36 @@ readCloud(fs::path path)
   else
     std::cout << "Format not compatible, it should be .pcd or .ply" << std::endl;
 
-
   return cloud;
 }
 
 
-std::vector<pcl::PointIndices> 
-computeClusters(PointCloud::Ptr &cloud)
+/*******************************************************************************
+ * @brief Realiza agrupaciones de puntos en función de sus normales
+ * 
+ * @param cloud  Nube de entrada
+ * @return std::vector<pcl::PointIndices> Vector con los indices pertenecientes 
+ * a cada agrupación 
+ */
+std::vector<pcl::PointIndices> computeClusters (PointCloud::Ptr &cloud)
 {
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz (new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
 
   pcl::copyPointCloud(*cloud, *cloud_xyz);
 
-  //***** Estimación de normales *********************************************//
-  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+
+  // Estimación de normales
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
   tree->setInputCloud(cloud_xyz);
   ne.setInputCloud(cloud_xyz);
   ne.setSearchMethod(tree);
-  ne.setKSearch(20);
-  // ne.setRadiusSearch(0.05);
+  ne.setKSearch(20); // Por vecinos no existen normales NaN
+  // ne.setRadiusSearch(0.05); // Por radio existiran puntos cuya normal sea NaN
   ne.compute(*cloud_normals);
 
-  //***** Segmentación basada en crecimiento de regiones *********************//
+  // Segmentación basada en crecimiento de regiones
   pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
   std::vector <pcl::PointIndices> clusters;
   reg.setMinClusterSize (100);
@@ -114,9 +124,10 @@ computeClusters(PointCloud::Ptr &cloud)
   return clusters;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
 regrow 
-regrowPlaneExtraction(PointCloud::Ptr &cloud)
+regrowPlaneExtraction (PointCloud::Ptr &cloud)
 {
   regrow return_values;
   pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
@@ -152,7 +163,10 @@ regrowPlaneExtraction(PointCloud::Ptr &cloud)
   return return_values;
 }
 
-PointCloud::Ptr filterOutliersRegrow (PointCloud::Ptr &cloud, std::vector<pcl::PointIndices> clusters)
+
+////////////////////////////////////////////////////////////////////////////////
+PointCloud::Ptr
+filterOutliersRegrow (PointCloud::Ptr &cloud, std::vector<pcl::PointIndices> clusters)
 {
   pcl::PointIndices::Ptr indices (new pcl::PointIndices);
   for (size_t i = 0; i < clusters.size(); i++)
@@ -172,9 +186,10 @@ PointCloud::Ptr filterOutliersRegrow (PointCloud::Ptr &cloud, std::vector<pcl::P
 }
 
 
-
-pcl::PointIndices::Ptr applyRANSAC(pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud, const bool optimizeCoefs,
-                                        float distThreshold = 0.03, int maxIterations = 1000)
+////////////////////////////////////////////////////////////////////////////////
+pcl::PointIndices::Ptr 
+applyRANSAC (pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud, const bool optimizeCoefs,
+            float distThreshold = 0.03, int maxIterations = 1000)
 {
   pcl::SACSegmentation<pcl::PointXYZLNormal> ransac;
 
@@ -193,8 +208,9 @@ pcl::PointIndices::Ptr applyRANSAC(pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &c
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 pcl::PointIndices::Ptr 
-getBiggestCluster(PointCloud::Ptr &cloud_in,
+getBiggestCluster (PointCloud::Ptr &cloud_in,
                   std::vector<pcl::PointIndices> clusters_vector)
 {
   PointCloud::Ptr out_cloud (new PointCloud);
@@ -218,8 +234,9 @@ getBiggestCluster(PointCloud::Ptr &cloud_in,
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 filterGroundClouds
-filterGroundByVolume(PointCloud::Ptr &cloud_in, std::vector<pcl::PointIndices> clusters_vector)
+filterGroundByVolume (PointCloud::Ptr &cloud_in, std::vector<pcl::PointIndices> clusters_vector)
 {
   filterGroundClouds nubes_salida;
   pcl::PointIndices::Ptr indices (new pcl::PointIndices);
@@ -264,7 +281,9 @@ filterGroundByVolume(PointCloud::Ptr &cloud_in, std::vector<pcl::PointIndices> c
 }
 
 
-PointCloud::Ptr extractIndices(PointCloud::Ptr &cloud, pcl::PointIndices::Ptr &indices)
+////////////////////////////////////////////////////////////////////////////////
+PointCloud::Ptr 
+extractIndices (PointCloud::Ptr &cloud, pcl::PointIndices::Ptr &indices)
 {
   PointCloud::Ptr cloud_out (new PointCloud);
   pcl::ExtractIndices<PointT> extract;
@@ -275,7 +294,10 @@ PointCloud::Ptr extractIndices(PointCloud::Ptr &cloud, pcl::PointIndices::Ptr &i
   return cloud_out;
 }
 
-PointCloud::Ptr radiusOutlierRemoval(PointCloud::Ptr &cloud, float radius, int minNeigbours)
+
+////////////////////////////////////////////////////////////////////////////////
+PointCloud::Ptr
+radiusOutlierRemoval (PointCloud::Ptr &cloud, float radius, int minNeigbours)
 {
   PointCloud::Ptr cloud_out (new PointCloud);
   pcl::RadiusOutlierRemoval<PointT> radius_removal;
@@ -288,8 +310,10 @@ PointCloud::Ptr radiusOutlierRemoval(PointCloud::Ptr &cloud, float radius, int m
   return cloud_out;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
 void 
-writeCloud(pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud_in, fs::path entry)
+writeCloud (pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud_in, fs::path entry)
 {
   pcl::PCDWriter pcd_writer;
   
@@ -304,9 +328,10 @@ writeCloud(pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud_in, fs::path entry)
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 // Plot clouds in two viewports
 void 
-visualizeClouds(PointCloud::Ptr &original_cloud, PointCloud::Ptr &filtered_cloud)
+visualizeClouds (PointCloud::Ptr &original_cloud, PointCloud::Ptr &filtered_cloud)
 {
   pcl::visualization::PCLVisualizer vis("PCL_Visualizer");
 
@@ -328,6 +353,7 @@ visualizeClouds(PointCloud::Ptr &original_cloud, PointCloud::Ptr &filtered_cloud
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
   auto start = std::chrono::high_resolution_clock::now();
@@ -361,10 +387,15 @@ int main(int argc, char **argv)
     cloud_in = readCloud(entry);
 
     PointCloud::Ptr cloud_filtered = radiusOutlierRemoval(cloud_in, 0.1, 10);
+
     regrow regrow_data = regrowPlaneExtraction(cloud_filtered);
+
     regrow_filtered = filterOutliersRegrow(cloud_filtered, regrow_data.clusters);
+
     regrow regrow_data2 =regrowPlaneExtraction(regrow_filtered);
+
     filterGroundClouds segment_clouds = filterGroundByVolume(regrow_filtered, regrow_data2.clusters);
+
     *ground_cloud = segment_clouds.ground;
     *no_ground_cloud = segment_clouds.no_ground;
 
@@ -374,8 +405,10 @@ int main(int argc, char **argv)
     std::cout << "Computation Time: " << duration.count() << " ms" << std::endl;
 
 
-    ////////////////////////////////////////////////////////////////////////////
-    // VISUALIZATION
+
+  //////////////////////////////////////////////////////////////////////////////
+  // VISUALIZATION
+
     pcl::visualization::PCLVisualizer vis ("PCL Visualizer");
     pcl::visualization::PCLVisualizer vis2 ("vis2");
     // Define ViewPorts
@@ -407,8 +440,11 @@ int main(int argc, char **argv)
     // vis.addPointCloud<PointT> (no_ground_cloud, no_ground_color, "no ground", v2);
     vis2.addPointCloud<PointT> (no_ground_cloud, no_ground_color, "no ground");
 
+
     while(!vis.wasStopped())
       vis.spinOnce(100);
+
+  //////////////////////////////////////////////////////////////////////////////
   }
 
   std::cout << GREEN << "COMPLETED!!" << RESET << std::endl;

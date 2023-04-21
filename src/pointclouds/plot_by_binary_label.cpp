@@ -18,6 +18,22 @@ typedef pcl::PointCloud<PointT> PointCloud;
 
 namespace fs = std::filesystem;
 
+void 
+writeCloud(PointCloud::Ptr &cloud_in)
+{
+  pcl::PLYWriter ply_writer;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::copyPointCloud(*cloud_in, *cloud_out);
+
+  fs::path abs_file_path = fs::current_path().parent_path() / "FILTERED_CLOUD";
+  if (!fs::exists(abs_file_path)) 
+    fs::create_directory(abs_file_path);
+
+  std::string filename = "nube.ply";
+
+  abs_file_path = abs_file_path / filename;
+  ply_writer.write(abs_file_path.string(), *cloud_out, true, false);
+}
 
 void plotCloud(PointCloud::Ptr &cloud)
 {
@@ -35,6 +51,8 @@ void plotCloud(PointCloud::Ptr &cloud)
   pass.setNegative(true);
   pass.filter(*truss_cloud);
 
+  // writeCloud(truss_cloud);
+
   pcl::visualization::PCLVisualizer visualizer;
   pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
   visualizer.addPointCloud<PointT>(truss_cloud, truss_color, "truss_cloud");
@@ -42,13 +60,14 @@ void plotCloud(PointCloud::Ptr &cloud)
   pcl::visualization::PointCloudColorHandlerCustom<PointT> env_color (env_cloud, 200,200,200);
   visualizer.addPointCloud<PointT>(env_cloud, env_color, "env_cloud");
 
-  visualizer.addCoordinateSystem(0.01, "sensor_origin");
+  // visualizer.addCoordinateSystem(0.3, "sensor_origin");
 
 
   while (!visualizer.wasStopped())
     visualizer.spinOnce(100);
 
 }
+
 
 
 int main(int argc, char **argv)
