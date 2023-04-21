@@ -27,8 +27,14 @@ namespace fs = std::filesystem;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
-PointCloud::Ptr readCloud(fs::path path_)
+/**
+ * @brief Lee una nube de puntos almacenada en un archivo.
+ * 
+ * @param path_ 
+ * @return PointCloud::Ptr Devuelve la nube de puntos.
+ */
+PointCloud::Ptr 
+readCloud(fs::path path_)
 {
   PointCloud::Ptr cloud (new PointCloud);
   std::string file_ext = path_.extension();
@@ -50,7 +56,8 @@ PointCloud::Ptr readCloud(fs::path path_)
 }
 
 
-pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(PointCloud::Ptr &cloud_in)
+pcl::PointCloud<pcl::PointNormal>::Ptr 
+computeNormals(PointCloud::Ptr &cloud_in)
 {
   pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointNormal>);
   pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
