@@ -295,15 +295,22 @@ extractIndices (PointCloud::Ptr &cloud, pcl::PointIndices::Ptr &indices)
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
+/**
+ * @brief Remove points with less than minNeighbors inside a give radius
+ * 
+ * @param cloud PointCloud to remove
+ * @param radius Radius inside to look for points
+ * @param minNeighbors Number on minimum Neighbors to not remove a point
+ * @return PointCloud::Ptr Return a PointCloud without low neighbor points
+ */
 PointCloud::Ptr
-radiusOutlierRemoval (PointCloud::Ptr &cloud, float radius, int minNeigbours)
+radiusOutlierRemoval (PointCloud::Ptr &cloud, float radius, int minNeighbors)
 {
   PointCloud::Ptr cloud_out (new PointCloud);
   pcl::RadiusOutlierRemoval<PointT> radius_removal;
   radius_removal.setInputCloud(cloud);
   radius_removal.setRadiusSearch(radius);
-  radius_removal.setMinNeighborsInRadius(minNeigbours);
+  radius_removal.setMinNeighborsInRadius(minNeighbors);
   radius_removal.filter(*cloud_out);
   std::cout << "Removed " << (cloud->points.size() - cloud_out->points.size()) << "points" << std::endl;
 

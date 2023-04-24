@@ -92,6 +92,14 @@ target_link_libraries(arvc_compute_roughness ${catkin_LIBRARIES} ${PCL_LIBRARIES
 add_executable(arvc_pointcloud2_to_eigen src/pointclouds/pointcloud2_to_eigen.cpp)
 target_link_libraries(arvc_pointcloud2_to_eigen ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(arvc_multi_neighbor_normals src/pointclouds/multi_neighbor_normals.cpp)
+target_link_libraries(arvc_multi_neighbor_normals ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(arvc_plot_by_curvature src/pointclouds/plot_by_curvature.cpp)
+target_link_libraries(arvc_plot_by_curvature ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(arvc_clustering_regrow_normals src/pointclouds/clustering_regrow_normals.cpp)
+target_link_libraries(arvc_clustering_regrow_normals ${PCL_LIBRARIES})
 
 add_executable(arvc_main src/main.cpp)
 target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})

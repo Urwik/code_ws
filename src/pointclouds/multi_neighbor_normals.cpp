@@ -22,6 +22,7 @@
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
+typedef pcl::PointCloud<pcl::Normal> Normals;
 // ************************************************************************** //
 namespace fs = std::filesystem;
 
@@ -50,7 +51,10 @@ readCloud(fs::path path_)
     ply_reader.read(path_.string(), *cloud);
   }
   else
-    std::cout << "Format not compatible, it should be .pcd or .ply" << std::endl;
+  {
+    std::cout << RED <<"Format not compatible, it should be .pcd or .ply" << RESET << std::endl;
+    exit;
+  }
 
   return cloud;
 }
@@ -64,10 +68,10 @@ readCloud(fs::path path_)
  * @param neighbours Número de vecinos
  * @return pcl::PointCloud<pcl::Normal>::Ptr Normales asociadas a cada punto
  */
-pcl::PointCloud<pcl::PointNormal>::Ptr 
+pcl::PointCloud<pcl::Normal>::Ptr 
 computeNormals(PointCloud::Ptr &cloud_in, int neighbours = 30)
 {
-  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointNormal>);
+  // pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointNormal>);
   pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
   pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
   pcl::NormalEstimation<PointT, pcl::Normal> ne;
@@ -75,12 +79,11 @@ computeNormals(PointCloud::Ptr &cloud_in, int neighbours = 30)
   ne.setInputCloud(cloud_in);
   ne.setSearchMethod(tree);
   ne.setKSearch(neighbours);
-  // ne.setRadiusSearch(0.1);
   ne.compute(*normals);
 
-  pcl::concatenateFields(*cloud_in, *normals, *cloud_out); 
+  // pcl::concatenateFields(*cloud_in, *normals, *cloud_out); 
 
-  return cloud_out;
+  return normals;
 }
 
 
@@ -90,54 +93,61 @@ computeNormals(PointCloud::Ptr &cloud_in, int neighbours = 30)
  * @param cloud_in Nube de entrada
  * @param entry Archivo de entrada
  */
-void writeCloud(pcl::PointCloud<pcl::PointNormal>::Ptr &cloud_in, fs::path entry)
+void writeCloud(pcl::PointCloud<pcl::PointNormal>::Ptr &cloud_in, std::string name, std::string format)
 {
-  pcl::PLYWriter ply_writer;
-  
-  fs::path abs_file_path = fs::current_path().parent_path() / "ply_xyznormal";
-  if (!fs::exists(abs_file_path)) 
-    fs::create_directory(abs_file_path);
 
-  std::string filename = entry.stem().string() + ".ply";
+  // Definicion ruta al archivo
+  fs::path file_dir = fs::current_path() / "multi_neighbor_normals";
+  if (!fs::exists(file_dir)) 
+    fs::create_directory(file_dir);
 
-  abs_file_path = abs_file_path / filename;
-  ply_writer.write(abs_file_path.string(), *cloud_in, true, false);
+  std::string filename = name + '.' + format;
+  fs::path abs_file_path = file_dir / filename;
+
+  // Guardado del archivo en función de su formato
+  if (format == "ply")
+  {
+    pcl::PLYWriter writer;
+    writer.write(abs_file_path.string(), *cloud_in, true, false);
+  }
+  else if (format == "pcd")
+  {
+    pcl::PCDWriter writer;
+    writer.write(abs_file_path.string(), *cloud_in, true);
+  }
+  else
+  {
+    std::cout << RED << "Invalid Format. Options: \"ply\" or \"pcd\"" << RESET << std::endl;
+    exit;
+  }
 }
 
 
 int main(int argc, char **argv)
 {
+  std::cout << GREEN << "STARTING CODE!!" << RESET << std::endl;
   auto start = std::chrono::high_resolution_clock::now();
-  PointCloud::Ptr cloud_in (new PointCloud);
-  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointNormal>);
 
-  fs::path current_dir = fs::current_path();
+  PointCloud::Ptr cloud_xyz (new PointCloud);
+  Normals::Ptr normals (new Normals);
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_xyznormals (new pcl::PointCloud<pcl::PointNormal>);
 
-  if(argc < 2)
+  fs::path entry = argv[1];
+  cloud_xyz = readCloud(entry);
+
+
+  std::vector<int> n_neighbors{10, 15, 20, 25, 30, 35, 40};
+  std::stringstream ss;
+
+  for (int neigh : n_neighbors)
   {
-    std::vector<fs::path> path_vector;
-    for(const auto &entry : fs::directory_iterator(current_dir))
-    {
-      if(entry.path().extension() == ".pcd" || entry.path().extension() == ".ply")
-        path_vector.push_back(entry.path());
-    }
-
-    for(const fs::path &entry : tq::tqdm(path_vector))
-    {
-      cloud_in = readCloud(entry);
-      cloud_out = computeNormals(cloud_in);
-      writeCloud(cloud_out, entry);
-    }
+    normals = computeNormals(cloud_xyz, neigh);
+    pcl::concatenateFields(*cloud_xyz, *normals, *cloud_xyznormals);
+    ss.str("");
+    ss << entry.stem().string() << '_' << neigh;
+    writeCloud(cloud_xyznormals, ss.str(), "pcd");
   }
-  else
-  {
-    fs::path entry = argv[1];
-    cloud_in = readCloud(entry);
-    // cloud_in_label = parseToXYZLabel(cloud_in);
-    cloud_out = computeNormals(cloud_in);
-    // COMPUTATION TIME
-    writeCloud(cloud_out, entry);
-  }
+  
 
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
