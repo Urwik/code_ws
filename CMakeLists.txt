@@ -53,8 +53,8 @@ target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 add_executable(arvc_compute_normals_XYZ src/pointclouds/compute_normals_XYZ.cpp)
 target_link_libraries(arvc_compute_normals_XYZ ${PCL_LIBRARIES})
 
-add_executable(arvc_filter_ground_by_density_and_cluster_volume src/pointclouds/filter_ground_by_density_and_cluster_volume.cpp)
-target_link_libraries(arvc_filter_ground_by_density_and_cluster_volume ${PCL_LIBRARIES})
+# add_executable(arvc_plane_segmentation_and_filtering src/pointclouds/plane_segmentation_and_filtering.cpp)
+# target_link_libraries(arvc_plane_segmentation_and_filtering ${PCL_LIBRARIES})
 
 add_executable(arvc_filter_ground_by_RANSAC src/pointclouds/filter_ground_by_RANSAC.cpp)
 target_link_libraries(arvc_filter_ground_by_RANSAC ${PCL_LIBRARIES})
@@ -100,6 +100,9 @@ target_link_libraries(arvc_plot_by_curvature ${catkin_LIBRARIES} ${PCL_LIBRARIES
 
 add_executable(arvc_clustering_regrow_normals src/pointclouds/clustering_regrow_normals.cpp)
 target_link_libraries(arvc_clustering_regrow_normals ${PCL_LIBRARIES})
+
+add_executable(arvc_ground_segmentation_and_filtering src/pointclouds/ground_segmentation_and_filtering.cpp)
+target_link_libraries(arvc_ground_segmentation_and_filtering ${PCL_LIBRARIES})
 
 add_executable(arvc_main src/main.cpp)
 target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})

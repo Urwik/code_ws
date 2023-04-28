@@ -26,6 +26,7 @@
 
 // Visualization
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_plotter.h>
 
 #include "tqdm.hpp"
 
@@ -105,8 +106,8 @@ std::vector<pcl::PointIndices> regrow_clustering (PointCloud::Ptr &cloud_in)
   tree->setInputCloud(cloud_in);
   ne.setInputCloud(cloud_in);
   ne.setSearchMethod(tree);
-  ne.setKSearch(40); // Por vecinos no existen normales NaN
-  // ne.setRadiusSearch(0.05); // Por radio existiran puntos cuya normal sea NaN
+  // ne.setKSearch(30); // Por vecinos no existen normales NaN
+  ne.setRadiusSearch(0.075); // Por radio existiran puntos cuya normal sea NaN
   ne.compute(*normals);
 
   // Segmentación basada en crecimiento de regiones
@@ -115,12 +116,45 @@ std::vector<pcl::PointIndices> regrow_clustering (PointCloud::Ptr &cloud_in)
   reg.setMinClusterSize (100);
   reg.setMaxClusterSize (25000);
   reg.setSearchMethod (tree);
-  reg.setNumberOfNeighbours (10);
   reg.setInputCloud (cloud_in);
-  reg.setInputNormals(normals);
-  reg.setSmoothnessThreshold (5.0 * (M_PI / 180));
-  reg.setCurvatureThreshold (1);
+  reg.setInputNormals (normals);
+  reg.setSmoothModeFlag(false);
+  reg.setCurvatureTestFlag(true);
+  reg.setCurvatureThreshold (0.1);
+  // reg.setResidualTestFlag(true);
+  // reg.setResidualTestFlag(0.05);
+  reg.setNumberOfNeighbours (30);
+  reg.setSmoothnessThreshold (35 * (M_PI / 180));
   reg.extract (clusters);
+  cout << "Num of seg restrictive: " << clusters.size() << endl;
+
+  auto col_cloud = reg.getColoredCloud();
+
+  pcl::visualization::PCLVisualizer vis ("CLOUD VISUALIZER");
+  int v1(0);
+  int v2(0);
+  vis.createViewPort(0,0,0.5,1, v1);
+  vis.createViewPort(0.5,0,1,1, v2);
+
+  vis.addPointCloud<pcl::PointXYZRGB>(col_cloud, "colored", v1);
+
+  clusters.clear();
+  reg.setSmoothModeFlag(true);
+  reg.setCurvatureTestFlag(true);
+  reg.setResidualTestFlag(false);
+  reg.setCurvatureThreshold(1);
+  reg.setNumberOfNeighbours (10);
+  reg.setSmoothnessThreshold (10.0 * (M_PI / 180));
+  // reg.setCurvatureThreshold(0.33);
+  reg.extract(clusters);
+  cout << "Num of seg  NON restrictive: " << clusters.size() << endl;
+
+  auto col_cloud_2 = reg.getColoredCloud();
+  vis.addPointCloud<pcl::PointXYZRGB>(col_cloud_2, "colored2", v2);
+
+
+  while(!vis.wasStopped())
+    vis.spinOnce();
 
   return clusters;
 }
@@ -197,35 +231,35 @@ int main(int argc, char **argv)
     cloud_in = readCloud(entry);
     clusters = regrow_clustering(cloud_in);
     
-    pcl::PointIndices::Ptr tmp_indices (new pcl::PointIndices);
-    PointCloud::Ptr tmp_cloud (new PointCloud);
-    pcl::visualization::PCLVisualizer::Ptr vis (new pcl::visualization::PCLVisualizer ("Cloud Visualizer"));
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> orig_color(cloud_in, 75, 75, 75);
-    vis->addPointCloud<PointT>(cloud_in, orig_color, "original");
-    stringstream ss;
-    int clust_num = 0;
-    rgb color; 
+    // pcl::PointIndices::Ptr tmp_indices (new pcl::PointIndices);
+    // PointCloud::Ptr tmp_cloud (new PointCloud);
+    // pcl::visualization::PCLVisualizer::Ptr vis (new pcl::visualization::PCLVisualizer ("Cloud Visualizer"));
+    // pcl::visualization::PointCloudColorHandlerCustom<PointT> orig_color(cloud_in, 75, 75, 75);
+    // vis->addPointCloud<PointT>(cloud_in, orig_color, "original");
+    // stringstream ss;
+    // int clust_num = 0;
+    // rgb color; 
 
-    for (pcl::PointIndices indices : clusters)
-    {
-      *tmp_indices = indices;
-      tmp_cloud = extractIndices(cloud_in, tmp_indices);
+    // for (pcl::PointIndices indices : clusters)
+    // {
+    //   *tmp_indices = indices;
+    //   tmp_cloud = extractIndices(cloud_in, tmp_indices);
 
-      // Generate name for each cluster
-      ss.str("");
-      ss << "cluster" << clust_num;
-      // Generate color for each cluster
-      color.r = rand() % 255 + 100;
-      color.g = rand() % 255 + 100;
-      color.b = rand() % 255 + 100;
+    //   // Generate name for each cluster
+    //   ss.str("");
+    //   ss << "cluster" << clust_num;
+    //   // Generate color for each cluster
+    //   color.r = rand() % 255 + 100;
+    //   color.g = rand() % 255 + 100;
+    //   color.b = rand() % 255 + 100;
 
 
-      pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_color(tmp_cloud, color.r, color.g, color.b);
-      vis->addPointCloud<PointT> (tmp_cloud, cloud_color, ss.str());
+    //   pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_color(tmp_cloud, color.r, color.g, color.b);
+    //   vis->addPointCloud<PointT> (tmp_cloud, cloud_color, ss.str());
     
-      clust_num++;
+    //   clust_num++;
 
-    }
+    // }
     
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -233,8 +267,8 @@ int main(int argc, char **argv)
     std::cout << "Computation Time: " << duration.count() << " ms" << std::endl;
     std::cout << GREEN << "COMPLETED!!" << RESET << std::endl;
 
-    while(!vis->wasStopped())
-      vis->spinOnce(100);
+    // while(!vis->wasStopped())
+    //   vis->spinOnce(100);
 
   //////////////////////////////////////////////////////////////////////////////
   }

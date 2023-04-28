@@ -78,7 +78,8 @@ computeNormals(PointCloud::Ptr &cloud_in, int neighbours = 30)
   
   ne.setInputCloud(cloud_in);
   ne.setSearchMethod(tree);
-  ne.setKSearch(neighbours);
+  // ne.setKSearch(neighbours);
+  ne.setRadiusSearch(0.075); // Por radio existiran puntos cuya normal sea NaN //0.075
   ne.compute(*normals);
 
   // pcl::concatenateFields(*cloud_in, *normals, *cloud_out); 
@@ -97,7 +98,7 @@ void writeCloud(pcl::PointCloud<pcl::PointNormal>::Ptr &cloud_in, std::string na
 {
 
   // Definicion ruta al archivo
-  fs::path file_dir = fs::current_path() / "multi_neighbor_normals";
+  fs::path file_dir = fs::current_path();
   if (!fs::exists(file_dir)) 
     fs::create_directory(file_dir);
 
@@ -136,7 +137,7 @@ int main(int argc, char **argv)
   cloud_xyz = readCloud(entry);
 
 
-  std::vector<int> n_neighbors{10, 15, 20, 25, 30, 35, 40};
+  std::vector<int> n_neighbors{74};
   std::stringstream ss;
 
   for (int neigh : n_neighbors)
