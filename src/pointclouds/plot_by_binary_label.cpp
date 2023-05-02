@@ -69,6 +69,70 @@ void plotCloud(PointCloud::Ptr &cloud)
 }
 
 
+<<<<<<< HEAD
+=======
+myRGB randRGB()
+{
+  myRGB color;
+  color.r = rand() % 256;
+  color.g = rand() % 256;
+  color.b = rand() % 256;
+
+  return color;
+}
+
+
+void plotCloud(fs::path path_to_cloud, int min_points = 20, int max_points = 1000)
+{
+  PointCloud::Ptr cloud (new PointCloud);
+  PointCloud::Ptr tmp_cloud (new PointCloud);
+  PointCloud::Ptr truss_cloud (new PointCloud);
+
+
+  pcl::PointIndices::Ptr indices (new pcl::PointIndices ());
+  pcl::ExtractIndices<PointT> extract;
+  extract.setInputCloud(cloud);
+
+  std::string ext = path_to_cloud.extension();
+  if(ext == ".pcd")
+  {
+    pcl::PCDReader reader;
+    reader.read(path_to_cloud, *cloud);
+  }  
+  else
+  {
+    pcl::PLYReader reader;
+    reader.read(path_to_cloud, *cloud);
+  }
+    
+  std::cout << path_to_cloud.stem().string() << std::endl;
+    
+  indices.reset(new pcl::PointIndices);
+  indices = findValue(cloud, 0);
+  // std::cout << "Index " << i << ": " << indices->indices.size() << std::endl;
+
+  extract.setIndices(indices);
+  extract.filter(*tmp_cloud);
+
+  extract.setNegative(true);
+  extract.filter(*truss_cloud);
+
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color (tmp_cloud, 100, 100, 100);
+  visualizer->addPointCloud<PointT>(tmp_cloud, single_color, "tmp_cloud");
+
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0, 255, 0);
+  visualizer->addPointCloud<PointT>(truss_cloud, truss_color, "truss_cloud");
+}
+
+void getlastkey()
+{
+  while(!visualizer->wasStopped())
+  {
+    std::getchar();
+    button = true;
+  }
+}
+>>>>>>> 9189f7c (commit caca)
 
 int main(int argc, char **argv)
 {

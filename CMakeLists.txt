@@ -71,6 +71,9 @@ target_link_libraries(arvc_view_cloud_normals ${PCL_LIBRARIES})
 add_executable(arvc_view_pcd_plane_by_plane src/pointclouds/view_pcd_plane_by_plane.cpp)
 target_link_libraries(arvc_view_pcd_plane_by_plane ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(arvc_plot_multiple_clouds src/pointclouds/plot_multiple_clouds.cpp)
+target_link_libraries(arvc_plot_multiple_clouds ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(arvc_plot_by_index src/pointclouds/plot_by_index.cpp)
 target_link_libraries(arvc_plot_by_index ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
