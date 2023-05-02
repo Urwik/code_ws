@@ -1,1 +1,0 @@
-/usr/bin/g++    -g    CMakeFiles/arvc_rename_files.dir/src/datasets/rename_files.cpp.o  -o arvc_rename_files   -L/opt/ros/noetic/lib 
