@@ -15,7 +15,9 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
-#include "arvc_utils.cpp"
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/voxel_grid.h>
+// #include "arvc_utils.cpp"
 
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -29,18 +31,17 @@
 
 #include "tqdm.hpp"
 
-// #define RESET   "\033[0m"
-// #define RED     "\033[31m"
-// #define GREEN   "\033[32m"  
-// #define YELLOW  "\033[33m"
-// #define BLUE    "\033[34m"
+#define RESET   "\033[0m"
+#define RED     "\033[31m"
+#define GREEN   "\033[32m"  
+#define YELLOW  "\033[33m"
+#define BLUE    "\033[34m"
 
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
 
 namespace fs = std::filesystem;
 using namespace std;
-
 
 class GroundSeg
 {
@@ -103,12 +104,17 @@ public:
   pcl::IndicesPtr gt_ground_indices;
   pcl::IndicesPtr gt_truss_indices;
 
+  pcl::ModelCoefficientsPtr plane_coefficients;
+  pcl::IndicesPtr plane_inliers;
+  PointCloud::Ptr plane_cloud;
+
   boost::shared_ptr<std::vector<pcl::PointIndices>> regrow_clusters;
 
 
   // Constructor
   GroundSeg(){
     cloud_in = PointCloud::Ptr (new PointCloud);
+    _cloud_intensity = PointCloudI::Ptr (new PointCloudI);
 
     ground_cloud = PointCloud::Ptr (new PointCloud);
     truss_cloud = PointCloud::Ptr (new PointCloud);
@@ -122,6 +128,10 @@ public:
     gt_ground_indices = pcl::IndicesPtr (new pcl::Indices);
     gt_truss_indices = pcl::IndicesPtr (new pcl::Indices);
 
+    plane_coefficients = pcl::ModelCoefficientsPtr (new pcl::ModelCoefficients);
+    plane_inliers = pcl::IndicesPtr (new pcl::Indices);
+    plane_cloud = PointCloud::Ptr (new PointCloud);
+
     regrow_clusters = boost::shared_ptr<std::vector<pcl::PointIndices>> (new std::vector<pcl::PointIndices>);
 
   }
@@ -130,6 +140,7 @@ public:
   // Destructor
   ~GroundSeg(){
     cloud_in->clear();
+    _cloud_intensity->clear();
     
     current_cloud->clear();
     ground_cloud->clear();
@@ -139,6 +150,7 @@ public:
     truss_indices->clear();
     current_indices->clear();
 
+    regrow_clusters->clear();
 
   }
 
@@ -174,6 +186,7 @@ public:
 
     // Convertir a XYZ
     pcl::copyPointCloud(*this->_cloud_intensity, *this->cloud_in);
+    *this->current_cloud = *this->cloud_in;
 
     return 0;
   }
@@ -187,15 +200,15 @@ public:
    * a cada agrupación 
    */
   void
-  regrow_segmentation ()
+  regrow_segmentation (PointCloud::Ptr &_cloud_in)
   {
     pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
 
     // Estimación de normales
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-    tree->setInputCloud(this->cloud_in);
-    ne.setInputCloud(this->cloud_in);
+    tree->setInputCloud(_cloud_in);
+    ne.setInputCloud(_cloud_in);
     ne.setSearchMethod(tree);
     ne.setKSearch(30); // Por vecinos no existen normales NaN
     // ne.setRadiusSearch(0.05); // Por radio existiran puntos cuya normal sea NaN
@@ -211,7 +224,7 @@ public:
     reg.setResidualThreshold(false);
     reg.setCurvatureThreshold(1);
     reg.setNumberOfNeighbours (10);
-    reg.setInputCloud (this->cloud_in);
+    reg.setInputCloud (_cloud_in);
     reg.setInputNormals (cloud_normals);
     reg.setSmoothnessThreshold (10.0 / 180.0 * M_PI);
     reg.extract (*this->regrow_clusters);
@@ -261,7 +274,7 @@ public:
    * @param indices Indices de los puntos que se quieren extraer
    * @param negative Si es true, se extraen los puntos que no están en indx_vec
    */
-  void
+  PointCloud::Ptr
   extract_indices (PointCloud::Ptr &cloud, pcl::IndicesPtr &indices, bool negative = false)
   {
     pcl::ExtractIndices<PointT> extract;
@@ -270,6 +283,8 @@ public:
     extract.setNegative(negative);
     extract.filter(*this->current_cloud);
     extract.filter(*this->current_indices);
+
+    return this->current_cloud;
   }
 
   /**
@@ -281,24 +296,21 @@ public:
    * @param maxIterations 
    * @return pcl::ModelCoefficients::Ptr 
    */
-  pcl::ModelCoefficients::Ptr 
-  compute_planar_ransac (PointCloud::Ptr &cloud, const bool optimizeCoefs,
+  void 
+  compute_planar_ransac (const bool optimizeCoefs,
               float distThreshold = 0.03, int maxIterations = 1000)
   {
+    pcl::PointIndices point_indices;
     pcl::SACSegmentation<PointT> ransac;
 
-    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-    pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-
-    ransac.setInputCloud(cloud);
+    ransac.setInputCloud(this->current_cloud);
     ransac.setOptimizeCoefficients(optimizeCoefs);
     ransac.setModelType(pcl::SACMODEL_PLANE);
     ransac.setMethodType(pcl::SAC_RANSAC);
     ransac.setMaxIterations(maxIterations);
     ransac.setDistanceThreshold(distThreshold);
-    ransac.segment(*inliers, *coefficients);
+    ransac.segment(point_indices, *this->plane_coefficients);
 
-    return coefficients;
   }
 
 
@@ -310,23 +322,22 @@ public:
    * @param distThreshold 
    * @return pcl::PointIndices::Ptr 
    */
-  pcl::PointIndices::Ptr
-  get_points_near_plane(PointCloud::Ptr &cloud_in, 
-                    pcl::ModelCoefficients::Ptr &coefs, float distThreshold = 0.5)
+  void
+  get_points_near_plane(float distThreshold = 0.5)
   {
-    pcl::PointIndices::Ptr indices (new pcl::PointIndices);
-    Eigen::Vector4f coefficients(coefs->values.data());
+    Eigen::Vector4f coefficients(this->plane_coefficients->values.data());
     pcl::PointXYZ point;
 
-    for (size_t i=0; i < cloud_in->points.size(); i++)
+    for (int indx : *this->current_indices)
     {
-      point = cloud_in->points[i];
+      point = this->cloud_in->points[indx];
       float distance = pcl::pointToPlaneDistance(point, coefficients);
       if (pcl::pointToPlaneDistance(point, coefficients) <= distThreshold)
-        indices->indices.push_back(i);
+        this->plane_inliers->push_back(indx);
     }
-    
-    return indices;
+
+    this->extract_indices(this->cloud_in, this->plane_inliers);
+    *this->plane_cloud = *this->current_cloud;
   }
 
 
@@ -337,13 +348,15 @@ public:
    * @return Eigen::Vector3f 
    */
   Eigen::Vector3f
-  compute_eigenvalues(PointCloud::Ptr &cloud_in)
+  compute_eigenvalues(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &indices)
   {
     Eigen::Vector4f xyz_centroid;
-    pcl::compute3DCentroid(*cloud_in, xyz_centroid);
+    PointCloud::Ptr tmp_cloud (new PointCloud);
+    *tmp_cloud = *this->extract_indices(_cloud_in, indices);
+    pcl::compute3DCentroid(*tmp_cloud, xyz_centroid);
 
     Eigen::Matrix3f covariance_matrix;
-    pcl::computeCovarianceMatrixNormalized (*cloud_in, xyz_centroid, covariance_matrix); 
+    pcl::computeCovarianceMatrixNormalized (*this->cloud_in, xyz_centroid, covariance_matrix); 
     // pcl::computeCovarianceMatrix (*cloud_in, xyz_centroid, covariance_matrix); 
 
 
@@ -355,21 +368,44 @@ public:
 
 
   /**
+   * @brief Filters each cluster by its eigen values
+   * 
+   * @return Eigen::Vector3f 
+   */
+  vector<pcl::Indices>
+  filter_clusters(vector<pcl::PointIndices> &clusters)
+  {
+    vector<pcl::Indices> filtered_clusters;
+    int clust_indx = 0;
+    for(auto cluster : clusters)
+    {
+      pcl::IndicesPtr current_cluster (new pcl::Indices);
+      *current_cluster = cluster.indices;
+      auto eig_values = this->compute_eigenvalues(this->cloud_in, current_cluster);
+      float size_relation = eig_values(1)/eig_values(2);
+      if (size_relation < 0.5)
+        filtered_clusters.push_back(cluster.indices);
+    }
+
+    return filtered_clusters;
+  }
+
+
+  /**
    * @brief Returns a Voxelized PointCloud
    * 
    * @param cloud_in 
    * @return pcl::PointCloud<pcl::PointXYZ>::Ptr
    */
-  PointCloud::Ptr
-  voxel_filter(PointCloud::Ptr &cloud_in, float leafSize = 0.1)
+  void
+  voxel_filter( float leafSize = 0.1)
   {
-    PointCloud::Ptr cloud_out (new PointCloud);
     pcl::VoxelGrid<PointT> sor;
-    sor.setInputCloud(cloud_in);
+    sor.setInputCloud(this->cloud_in);
+    sor.setIndices(this->current_indices);
     sor.setLeafSize(leafSize, leafSize, leafSize);
-    sor.filter(*cloud_out);
+    sor.filter(*this->current_cloud);
 
-    return cloud_out;
   }
 
 
@@ -415,18 +451,15 @@ public:
 
 
   /**
-   * @brief Returns a Voxelized PointCloud
-   * 
-   * @param cloud_in 
-   * @return pcl::PointCloud<pcl::PointXYZ>::Ptr
-   */
+   * Visualize current working cloud
+  */
   void 
-  visualizeCloud (PointCloud::Ptr &original_cloud)
+  visualizeCloud ()
   {
     pcl::visualization::PCLVisualizer vis("PCL_Visualizer");
 
     int v1(0);
-    vis.addPointCloud<PointT> (original_cloud, "Original", v1);
+    vis.addPointCloud<PointT> (this->cloud_in, "Original", v1);
 
     while(!vis.wasStopped())
       vis.spinOnce(100);
@@ -438,22 +471,20 @@ public:
   /**
    * @brief Remove points with less than minNeighbors inside a give radius
    * 
-   * @param cloud PointCloud to apply the filter
    * @param radius Search sphere radius
    * @param minNeighbors Minimum num of Neighbors to consider a point an inlier
    * @return PointCloud::Ptr Return a PointCloud without low neighbor points
    */
-  PointCloud::Ptr
-  radius_outlier_removal (PointCloud::Ptr &cloud_in, float radius, int minNeighbors)
+  void
+  radius_outlier_removal (float radius, int minNeighbors)
   {
-    PointCloud::Ptr cloud_out (new PointCloud);
     pcl::RadiusOutlierRemoval<PointT> radius_removal;
-    radius_removal.setInputCloud(cloud_in);
+    radius_removal.setInputCloud(this->cloud_in);
     radius_removal.setRadiusSearch(radius);
     radius_removal.setMinNeighborsInRadius(minNeighbors);
-    radius_removal.filter(*cloud_out);
+    radius_removal.filter(*this->current_cloud);
+    radius_removal.filter(*this->current_indices);
 
-    return cloud_out;
   }
 
 };
@@ -466,6 +497,9 @@ int main(int argc, char **argv)
   auto start = std::chrono::high_resolution_clock::now();
 
   GroundSeg ground_seg;
+
+  int vientes = 20;
+
 
   // EVERY CLOUD IN THE CURRENT FOLDER
   if(argc < 2)
@@ -491,11 +525,14 @@ int main(int argc, char **argv)
   {
     fs::path entry = argv[1];
     ground_seg.path = entry;
-    ground_seg.radius_outlier_removal(ground_seg.cloud_in, 0.1, 5);
-    ground_seg.voxel_filter(ground_seg.cloud_in, 0.05);
-    pcl::ModelCoefficients::Ptr asdf (new pcl::ModelCoefficients);
-    asdf = ground_seg.compute_planar_ransac(ground_seg.cloud_in, 0.1, 1000, 0.1);
-    ground_seg.get_points_near_plane(ground_seg.cloud_in, asdf, 0.5);
+    ground_seg.readCloud();
+    ground_seg.radius_outlier_removal(0.10f, 5);
+    ground_seg.voxel_filter(0.05);
+    ground_seg.compute_planar_ransac(true, 0.50f, 1000);
+    ground_seg.get_points_near_plane(0.50f);
+    ground_seg.regrow_segmentation(ground_seg.plane_cloud);
+    ground_seg.filter_clusters(*ground_seg.regrow_clusters);
+
   }
 
 
