@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <chrono>
+#include <numeric>
+
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -280,12 +282,14 @@ namespace arvc
    * @param distThreshold 
    * @return pcl::PointIndices::Ptr 
    */
-  pcl::IndicesPtr
+  pair<pcl::IndicesPtr, pcl::IndicesPtr>
   get_points_near_plane(PointCloud::Ptr &_cloud_in, pcl::ModelCoefficientsPtr &_plane_coeffs, float distThreshold = 0.5f)
   {
     Eigen::Vector4f coefficients(_plane_coeffs->values.data());
     pcl::PointXYZ point;
     pcl::IndicesPtr _plane_inliers (new pcl::Indices);
+    pcl::IndicesPtr _plane_outliers (new pcl::Indices);
+
 
     for (size_t indx = 0; indx < _cloud_in->points.size(); indx++)
     {
@@ -293,9 +297,11 @@ namespace arvc
       float distance = pcl::pointToPlaneDistance(point, coefficients);
       if (pcl::pointToPlaneDistance(point, coefficients) <= distThreshold)
         _plane_inliers->push_back(indx);
+      else
+        _plane_outliers->push_back(indx);
     }
 
-    return _plane_inliers;
+    return pair<pcl::IndicesPtr, pcl::IndicesPtr> {_plane_inliers, _plane_outliers};
   }
 
 
@@ -306,7 +312,7 @@ namespace arvc
    * @return Eigen::Vector3f 
    */
   Eigen::Vector3f
-  compute_eigenvalues(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices)
+  compute_eigenvalues(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices, bool normalize = true)
   {
     Eigen::Vector4f xyz_centroid;
     PointCloud::Ptr tmp_cloud (new PointCloud);
@@ -314,8 +320,10 @@ namespace arvc
     pcl::compute3DCentroid(*tmp_cloud, xyz_centroid);
 
     Eigen::Matrix3f covariance_matrix;
-    pcl::computeCovarianceMatrixNormalized (*tmp_cloud, xyz_centroid, covariance_matrix); 
-    // pcl::computeCovarianceMatrix (*tmp_cloud, xyz_centroid, covariance_matrix); 
+    if (normalize)
+      pcl::computeCovarianceMatrixNormalized (*tmp_cloud, xyz_centroid, covariance_matrix); 
+    else
+      pcl::computeCovarianceMatrix (*tmp_cloud, xyz_centroid, covariance_matrix); 
 
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance_matrix, Eigen::ComputeEigenvectors);
     Eigen::Vector3f eigenValuesPCA = eigen_solver.eigenvalues();
@@ -330,7 +338,7 @@ namespace arvc
    * @return Eigen::Vector3f 
    */
   vector<int>
-  validate_clusters(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _ratio_threshold)
+  validate_clusters_by_ratio(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _ratio_threshold)
   {
     cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
     vector<int> valid_clusters;
@@ -341,7 +349,7 @@ namespace arvc
     {
       pcl::IndicesPtr current_cluster (new pcl::Indices);
       *current_cluster = cluster.indices;
-      auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster);
+      auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, true);
       float size_ratio = eig_values(1)/eig_values(2);
 
       if (size_ratio < _ratio_threshold){
@@ -358,6 +366,75 @@ namespace arvc
     return valid_clusters;
   }
 
+  /**
+   * @brief Filters each cluster by its eigen values
+   * 
+   * @return Eigen::Vector3f 
+   */
+  vector<int>
+  validate_clusters_by_module(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _module_threshold)
+  {
+    cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
+    vector<int> valid_clusters;
+    valid_clusters.clear();
+
+    int clust_indx = 0;
+    for(auto cluster : clusters)
+    {
+      pcl::IndicesPtr current_cluster (new pcl::Indices);
+      *current_cluster = cluster.indices;
+      auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
+      cout << "Eig values: " << eig_values(1) << ", " << eig_values(2) << endl;
+
+      if (eig_values(1) < _module_threshold && eig_values(2) < _module_threshold){
+        valid_clusters.push_back(clust_indx);
+        cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " with  modules: " << eig_values(1) << ", " << eig_values(2) << endl;
+      }
+        
+      clust_indx++;
+    }
+
+    if (valid_clusters.size() == 0)
+      cout << "\tNo valid clusters found" << endl;
+
+    return valid_clusters;
+  }
+
+    /**
+   * @brief Filters each cluster by its eigen values
+   * 
+   * @return Eigen::Vector3f 
+   */
+  vector<int>
+  validate_clusters_hybrid(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _ratio_threshold, float _module_threshold)
+  {
+    // cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
+    vector<int> valid_clusters;
+    valid_clusters.clear();
+
+    int clust_indx = 0;
+    for(auto cluster : clusters)
+    {
+      pcl::IndicesPtr current_cluster (new pcl::Indices);
+      *current_cluster = cluster.indices;
+      auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
+      float size_ratio = eig_values(1)/eig_values(2);
+
+      if (eig_values(1) < _module_threshold && eig_values(2) < _module_threshold){
+        if (size_ratio < _ratio_threshold){
+          valid_clusters.push_back(clust_indx);
+          // cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " with ratio: " << size_ratio << endl;
+        }
+      }
+
+      clust_indx++;
+    }
+
+    // if (valid_clusters.size() == 0)
+    //   cout << "\tNo valid clusters found" << endl;
+
+    return valid_clusters;
+  }
 
   pcl::IndicesPtr
   ownInverseIndices(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices_in)
@@ -555,6 +632,25 @@ namespace arvc
     radius_removal.filter(*_indices_out);
 
     return _indices_out;
+  }
+
+  float
+  mean(vector<float> v)
+  {
+    float sum = std::accumulate(v.begin(), v.end(), 0.0);
+    float mean = sum / v.size();
+    
+    return mean;
+  }
+
+  int
+  mean(vector<int> v)
+  {
+    int sum = std::accumulate(v.begin(), v.end(), 0.0);
+    float mean = sum / v.size();
+    int value = round(mean);
+    
+    return value;
   }
 
 }
