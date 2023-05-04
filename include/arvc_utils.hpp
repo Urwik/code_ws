@@ -18,6 +18,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/filter_indices.h>
 
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -50,6 +51,7 @@ struct metrics
 {
   float precision = 0.0;
   float recall = 0.0;
+  float f1_score = 0.0;
   float accuracy = 0.0;
 };
 
@@ -147,7 +149,7 @@ namespace arvc
    * a cada agrupación 
    */
   vector<pcl::PointIndices>
-  regrow_segmentation (PointCloud::Ptr &_cloud_in)
+  regrow_segmentation (PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices)
   {
 
     // Estimación de normales
@@ -156,6 +158,7 @@ namespace arvc
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
     tree->setInputCloud(_cloud_in);
     ne.setInputCloud(_cloud_in);
+    // ne.setIndices(_indices);
     ne.setSearchMethod(tree);
     ne.setKSearch(30);            // Por vecinos no existen normales NaN
     // ne.setRadiusSearch(0.05);  // Por radio existiran puntos cuya normal sea NaN
@@ -173,20 +176,14 @@ namespace arvc
     reg.setCurvatureThreshold(1);
     reg.setNumberOfNeighbours (10);
     reg.setInputCloud (_cloud_in);
+    reg.setIndices(_indices);
     reg.setInputNormals (_cloud_normals);
     reg.setSmoothnessThreshold (10.0 / 180.0 * M_PI);
     reg.extract (_regrow_clusters);
 
-    int cuenta = 0;
-    for (auto clust : _regrow_clusters)
-      cuenta += clust.indices.size();
+    // cout << "Number of clusters: " << _regrow_clusters.size() << endl;
 
-    
-    cout << "Tamaño clusters vector: " << cuenta << endl;
-    cout << "Tamaño de nube de entrada: " << _cloud_in->points.size() << endl;
-
-
-    // // Uncomment to visualize cloud
+    // Uncomment to visualize cloud
     // pcl::visualization::PCLVisualizer vis ("PCL Visualizer");
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     // color_cloud = reg.getColoredCloud();
@@ -333,9 +330,11 @@ namespace arvc
    * @return Eigen::Vector3f 
    */
   vector<int>
-  validate_clusters(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters)
+  validate_clusters(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _ratio_threshold)
   {
+    cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
     vector<int> valid_clusters;
+    valid_clusters.clear();
 
     int clust_indx = 0;
     for(auto cluster : clusters)
@@ -343,16 +342,51 @@ namespace arvc
       pcl::IndicesPtr current_cluster (new pcl::Indices);
       *current_cluster = cluster.indices;
       auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster);
-      float size_relation = eig_values(1)/eig_values(2);
-      if (size_relation < 0.5)
-        valid_clusters.push_back(clust_indx);
+      float size_ratio = eig_values(1)/eig_values(2);
 
+      if (size_ratio < _ratio_threshold){
+        valid_clusters.push_back(clust_indx);
+        cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " with ratio: " << size_ratio << endl;
+      }
+        
       clust_indx++;
     }
+
+    if (valid_clusters.size() == 0)
+      cout << "\tNo valid clusters found" << endl;
 
     return valid_clusters;
   }
 
+
+  pcl::IndicesPtr
+  ownInverseIndices(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices_in)
+  {
+    pcl::IndicesPtr _indices_out (new pcl::Indices);
+    _indices_out->resize(_cloud_in->size());
+    iota(_indices_out->begin(), _indices_out->end(), 0);
+
+    for (int indx : *_indices_in)
+      _indices_out->erase(remove(_indices_out->begin(), _indices_out->end(), indx), _indices_out->end());
+
+    // set_difference(_original_indices->begin(), _original_indices->end(), _indices_in->begin(), _indices_in->end(), inserter(*_indices_out, _indices_out->begin()));
+
+    return _indices_out;
+  }
+
+
+  pcl::IndicesPtr
+  inverseIndices(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices_in)
+  {
+    pcl::IndicesPtr _indices_out (new pcl::Indices);
+    pcl::ExtractIndices<PointT> extract;
+    extract.setInputCloud(_cloud_in);
+    extract.setIndices(_indices_in);
+    extract.setNegative(true);
+    extract.filter(*_indices_out);
+
+    return _indices_out;
+  }
 
   /**
    * @brief Returns a Voxelized PointCloud
@@ -372,6 +406,26 @@ namespace arvc
     return _cloud_out;
   }
 
+  /**
+   * @brief Returns the intersection of two vectors
+   * 
+   * @param v1 
+   * @param v2 
+   * @return vector<int> 
+   */
+  vector<int> 
+  intersection(vector<int> v1,
+               vector<int> v2){
+    vector<int> v3;
+
+    sort(v1.begin(), v1.end());
+    sort(v2.begin(), v2.end());
+
+    std::set_intersection(v1.begin(),v1.end(),
+                          v2.begin(),v2.end(),
+                          back_inserter(v3));
+    return v3;
+  }
 
   /**
    * @brief Returns a Voxelized PointCloud
@@ -380,17 +434,41 @@ namespace arvc
    * @return pcl::PointCloud<pcl::PointXYZ>::Ptr
    */
   metrics
-  compute_metrics(PointCloud::Ptr &gt_truss, PointCloud::Ptr &gt_ground,  PointCloud::Ptr &truss_cloud, PointCloud::Ptr &ground_cloud)
+  computeMetrics(conf_matrix cm)
   {
-    metrics metrics_;
-    conf_matrix conf_matrix_;
-    PointCloud tmp_cloud;
-    // tmp_cloud = *truss_cloud - *gt_ground;
+    metrics _metrics;
 
-    conf_matrix_.TP = truss_cloud->size() - tmp_cloud.size();
+    _metrics.precision = (float)cm.TP / ((float)cm.TP + (float)cm.FP);
+    _metrics.recall = (float)cm.TP / ((float)cm.TP + (float)cm.FN);
+    _metrics.f1_score = 2 * (_metrics.precision * _metrics.recall) / (_metrics.precision + _metrics.recall);
+    _metrics.accuracy = (float)(cm.TP + cm.TN) / (float)(cm.TP + cm.TN + cm.FP + cm.FN);
 
-    return metrics_;
+    return _metrics;
   }
+
+
+  /**
+   * @brief Computes the confusion matrix from the ground truth and the detected indices
+   * 
+   * @param gt_truss_idx 
+   * @param gt_ground_idx 
+   * @param truss_idx 
+   * @param ground_idx 
+   * @return conf_matrix 
+   */
+  conf_matrix
+  computeConfusionMatrix(pcl::IndicesPtr &gt_truss_idx, pcl::IndicesPtr &gt_ground_idx,  pcl::IndicesPtr &truss_idx, pcl::IndicesPtr &ground_idx)
+  {
+    conf_matrix _conf_matrix;
+
+    _conf_matrix.TP = arvc::intersection(*gt_truss_idx, *truss_idx).size();
+    _conf_matrix.TN = arvc::intersection(*gt_ground_idx, *ground_idx).size();
+    _conf_matrix.FP = gt_ground_idx->size() - _conf_matrix.TN;
+    _conf_matrix.FN = gt_truss_idx->size() - _conf_matrix.TP;
+    
+    return _conf_matrix;
+  }
+
 
   /**
    * @brief Returns a Voxelized PointCloud
@@ -432,6 +510,30 @@ namespace arvc
   }
 
 
+  void 
+  visualizeClouds (PointCloud::Ptr &original_cloud, PointCloud::Ptr &filtered_cloud)
+  {
+    pcl::visualization::PCLVisualizer vis("PCL_Visualizer");
+
+    int v1(0);
+    int v2(0);
+
+    //Define ViewPorts
+    vis.createViewPort(0,0,0.5,1, v1);
+    vis.createViewPort(0.5,0,1,1, v2);
+
+    vis.removeAllPointClouds();
+
+    vis.addPointCloud<PointT> (original_cloud, "Original", v1);
+    vis.addPointCloud<PointT> (filtered_cloud, "Filtered", v2);
+
+    while(!vis.wasStopped())
+      vis.spinOnce(100);
+
+    vis.close();
+  }
+
+
   /**
    * @brief Remove points with less than minNeighbors inside a give radius
    * 
@@ -439,17 +541,20 @@ namespace arvc
    * @param minNeighbors Minimum num of Neighbors to consider a point an inlier
    * @return PointCloud::Ptr Return a PointCloud without low neighbor points
    */
-  PointCloud::Ptr
-  radius_outlier_removal (PointCloud::Ptr &_cloud_in, float radius, int minNeighbors)
+  pcl::IndicesPtr
+  radius_outlier_removal (PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices_in, float radius, int minNeighbors, bool negative = false)
   {
     PointCloud::Ptr _cloud_out (new PointCloud);
+    pcl::IndicesPtr _indices_out (new pcl::Indices);
     pcl::RadiusOutlierRemoval<PointT> radius_removal;
     radius_removal.setInputCloud(_cloud_in);
+    radius_removal.setIndices(_indices_in);
     radius_removal.setRadiusSearch(radius);
     radius_removal.setMinNeighborsInRadius(minNeighbors);
-    radius_removal.filter(*_cloud_out);
+    radius_removal.setNegative(negative);
+    radius_removal.filter(*_indices_out);
 
-    return _cloud_out;
+    return _indices_out;
   }
 
 }
