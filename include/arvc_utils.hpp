@@ -27,6 +27,8 @@
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/radius_outlier_removal.h>
+#include <Eigen/Dense>
+#include <pcl/io/obj_io.h>
 
 // Visualization
 #include <pcl/visualization/pcl_visualizer.h>
@@ -153,7 +155,7 @@ namespace arvc
   vector<pcl::PointIndices>
   regrow_segmentation (PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices)
   {
-
+    // auto start = std::chrono::high_resolution_clock::now();
     // Estimación de normales
     pcl::PointCloud<pcl::Normal>::Ptr _cloud_normals (new pcl::PointCloud<pcl::Normal>);
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
@@ -165,6 +167,9 @@ namespace arvc
     ne.setKSearch(30);            // Por vecinos no existen normales NaN
     // ne.setRadiusSearch(0.05);  // Por radio existiran puntos cuya normal sea NaN
     ne.compute(*_cloud_normals);
+    // auto stop = std::chrono::high_resolution_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    // std::cout << "Normals Computation Time: " << duration.count() << " ms" << std::endl;
 
     // Segmentación basada en crecimiento de regiones
     vector<pcl::PointIndices> _regrow_clusters;
@@ -197,6 +202,61 @@ namespace arvc
     return _regrow_clusters;
   }
 
+  /**
+   * @brief Realiza agrupaciones de puntos en función de sus normales
+   * 
+   * @param cloud  Nube de entrada
+   * @return std::vector<pcl::PointIndices> Vector con los indices pertenecientes 
+   * a cada agrupación 
+   */
+  vector<pcl::PointIndices>
+  regrow_segmentation (PointCloud::Ptr &_cloud_in)
+  {
+    // auto start = std::chrono::high_resolution_clock::now();
+    // Estimación de normales
+    pcl::PointCloud<pcl::Normal>::Ptr _cloud_normals (new pcl::PointCloud<pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    tree->setInputCloud(_cloud_in);
+    ne.setInputCloud(_cloud_in);
+    // ne.setIndices(_indices);
+    ne.setSearchMethod(tree);
+    ne.setKSearch(30);            // Por vecinos no existen normales NaN
+    // ne.setRadiusSearch(0.05);  // Por radio existiran puntos cuya normal sea NaN
+    ne.compute(*_cloud_normals);
+    // auto stop = std::chrono::high_resolution_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    // std::cout << "Normals Computation Time: " << duration.count() << " ms" << std::endl;
+
+    // Segmentación basada en crecimiento de regiones
+    vector<pcl::PointIndices> _regrow_clusters;
+    pcl::RegionGrowing<PointT, pcl::Normal> reg;
+    reg.setMinClusterSize (100);
+    reg.setMaxClusterSize (25000);
+    reg.setSearchMethod (tree);
+    reg.setSmoothModeFlag(false);
+    reg.setCurvatureTestFlag(true);
+    reg.setResidualThreshold(false);
+    reg.setCurvatureThreshold(1);
+    reg.setNumberOfNeighbours (10);
+    reg.setInputCloud (_cloud_in);
+    reg.setInputNormals (_cloud_normals);
+    reg.setSmoothnessThreshold (10.0 / 180.0 * M_PI);
+    reg.extract (_regrow_clusters);
+
+    // cout << "Number of clusters: " << _regrow_clusters.size() << endl;
+
+    // Uncomment to visualize cloud
+    // pcl::visualization::PCLVisualizer vis ("PCL Visualizer");
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+    // color_cloud = reg.getColoredCloud();
+    // vis.addPointCloud<pcl::PointXYZRGB>(color_cloud);
+
+    // while (!vis.wasStopped())
+    //   vis.spinOnce();
+
+    return _regrow_clusters;
+  }
 
   /**
    * @brief Filtra la nube de puntos en función de los índices pasados como parámetro
@@ -340,7 +400,7 @@ namespace arvc
   vector<int>
   validate_clusters_by_ratio(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _ratio_threshold)
   {
-    cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
+    // cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
     vector<int> valid_clusters;
     valid_clusters.clear();
 
@@ -354,14 +414,14 @@ namespace arvc
 
       if (size_ratio < _ratio_threshold){
         valid_clusters.push_back(clust_indx);
-        cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " with ratio: " << size_ratio << endl;
+        // cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " with ratio: " << size_ratio << endl;
       }
         
       clust_indx++;
     }
 
-    if (valid_clusters.size() == 0)
-      cout << "\tNo valid clusters found" << endl;
+    // if (valid_clusters.size() == 0)
+    //   cout << "\tNo valid clusters found" << endl;
 
     return valid_clusters;
   }
@@ -374,7 +434,7 @@ namespace arvc
   vector<int>
   validate_clusters_by_module(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _module_threshold)
   {
-    cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
+    // cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
     vector<int> valid_clusters;
     valid_clusters.clear();
 
@@ -384,18 +444,18 @@ namespace arvc
       pcl::IndicesPtr current_cluster (new pcl::Indices);
       *current_cluster = cluster.indices;
       auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
-      cout << "Eig values: " << eig_values(1) << ", " << eig_values(2) << endl;
+      // cout << "Eig values: " << eig_values(1) << ", " << eig_values(2) << endl;
 
       if (eig_values(1) < _module_threshold && eig_values(2) < _module_threshold){
         valid_clusters.push_back(clust_indx);
-        cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " with  modules: " << eig_values(1) << ", " << eig_values(2) << endl;
+        // cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " with  modules: " << eig_values(1) << ", " << eig_values(2) << endl;
       }
         
       clust_indx++;
     }
 
-    if (valid_clusters.size() == 0)
-      cout << "\tNo valid clusters found" << endl;
+    // if (valid_clusters.size() == 0)
+    //   cout << "\tNo valid clusters found" << endl;
 
     return valid_clusters;
   }
@@ -419,6 +479,8 @@ namespace arvc
       *current_cluster = cluster.indices;
       auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
       float size_ratio = eig_values(1)/eig_values(2);
+      cout << "Eig values: " << eig_values(1) << ", " << eig_values(2) << endl;
+      cout << "Ratio: " << size_ratio << endl;
 
       if (eig_values(1) < _module_threshold && eig_values(2) < _module_threshold){
         if (size_ratio < _ratio_threshold){
@@ -601,6 +663,10 @@ namespace arvc
 
     vis.removeAllPointClouds();
 
+    vis.addCoordinateSystem(0.50, "global", v1);
+    Eigen::Vector3f position(0.0, 0.0, 0.0);
+
+    vis.addCube(position, original_cloud->sensor_orientation_, 0.085, 0.085, 0.073, "cube", v1);
     vis.addPointCloud<PointT> (original_cloud, "Original", v1);
     vis.addPointCloud<PointT> (filtered_cloud, "Filtered", v2);
 
@@ -651,6 +717,16 @@ namespace arvc
     int value = round(mean);
     
     return value;
+  }
+
+
+  void
+  addLinetoViewer()
+  {
+  //   pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+  //   viewer->addLine (center, x_axis, 1.0f, 0.0f, 0.0f, "major eigen vector");
+  //   viewer->addLine (center, y_axis, 0.0f, 1.0f, 0.0f, "middle eigen vector");
+  //   viewer->addLine (center, z_axis, 0.0f, 0.0f, 1.0f, "minor eigen vector");
   }
 
 }

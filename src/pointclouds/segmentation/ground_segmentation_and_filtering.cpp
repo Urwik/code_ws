@@ -34,6 +34,7 @@ public:
   conf_matrix cm;
 
   bool visualize;
+  bool compute_metrics;
 
   remove_ground(fs::path _path)
   {
@@ -47,6 +48,7 @@ public:
     this->low_density_idx = pcl::IndicesPtr (new pcl::Indices);
 
     this->visualize = false;
+    this->compute_metrics = false;
   }
 
   ~remove_ground()
@@ -91,13 +93,13 @@ public:
     // coarse_truss_indices = arvc::ownInverseIndices(this->cloud_in, coarse_ground_indices);
 
     // Filter points with similar curvature lying in same plane
-    // tmp_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
+    tmp_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
+    // (this->visualize) ? arvc::visualizeCloud(tmp_cloud) : void();
     // cloud_out_xyz = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
     regrow_clusters = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
     // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, 0.15f);
     // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1000.0f);
     valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
-
 
     for(int clus_indx : valid_clusters)
       coarse_truss_indices->insert(coarse_truss_indices->end(), regrow_clusters[clus_indx].indices.begin(), regrow_clusters[clus_indx].indices.end());
@@ -118,10 +120,11 @@ public:
 
 
     // Compute metrics
-    this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
-
-    this->metricas = arvc::computeMetrics(cm);
-
+    if(this->compute_metrics)
+    {
+      this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::computeMetrics(cm);
+    }
     // cout << "Confusion Matrix: " << endl;
     // cout << "\tTP: " << cm.TP << endl;
     // cout << "\tTN: " << cm.TN << endl;
@@ -148,14 +151,31 @@ public:
   fs::path path;
   PointCloud::Ptr cloud_in;
   PointCloud::Ptr cloud_out;
+  pcl::IndicesPtr truss_idx;
+  pcl::IndicesPtr ground_idx;
+  pcl::IndicesPtr gt_truss_idx;
+  pcl::IndicesPtr gt_ground_idx;
+  pcl::IndicesPtr low_density_idx;
+
+  metrics metricas;
+  conf_matrix cm;
+
   bool visualize;
+  bool compute_metrics;
 
   // Constructor
   segment_planes(fs::path _path){
     this->path = _path;
     this->cloud_in = PointCloud::Ptr (new PointCloud);
     this->cloud_out = PointCloud::Ptr (new PointCloud);
+    this->truss_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->ground_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->gt_truss_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->gt_ground_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->low_density_idx = pcl::IndicesPtr (new pcl::Indices);
+
     this->visualize = false;
+    this->compute_metrics = false;
   }
 
   // Destructor
@@ -164,6 +184,7 @@ public:
     this->cloud_in->clear();
     this->cloud_out->clear();
     this->visualize = false;
+    this->compute_metrics = false;
   }
 
   int
@@ -189,36 +210,39 @@ public:
     cloud_in_xyz = arvc::parseToXYZ(cloud_in_intensity);
     *this->cloud_in = *cloud_in_xyz;
 
+    regrow_clusters = arvc::regrow_segmentation(this->cloud_in);
+    cout << "Regrow clusters size: " << regrow_clusters.size() << endl;
 
-    // This is temporal, only for get the correct biggest plane
-    tmp_cloud = arvc::voxel_filter(cloud_in_xyz, 0.05f);
-    (this->visualize) ? arvc::visualizeCloud(tmp_cloud) : void();
-    tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true ,0.15f, 1000);
-    auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, tmp_plane_coefss, 0.5f);
-    coarse_ground_indices = coarse_indices.first;
-    coarse_truss_indices = coarse_indices.second;
+    valid_clusters = arvc::validate_clusters_by_ratio(tmp_cloud, regrow_clusters, 0.3f);
+    // valid_clusters = arvc::validate_clusters_by_module(tmp_cloud, regrow_clusters, 0.3f);
+    // valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, 0.3f, 0.3f);
 
-    // Filter points with similar curvature lying in same plane
-    tmp_cloud = arvc::extract_indices(cloud_in_xyz, current_indices, false);
-    cloud_out_xyz = arvc::extract_indices(cloud_in_xyz, current_indices, true);
 
-    regrow_clusters = arvc::regrow_segmentation(tmp_cloud, current_indices);
-    // valid_clusters = arvc::validate_clusters_by_ratio(tmp_cloud, regrow_clusters, 0.3f);
-    valid_clusters = arvc::validate_clusters_by_module(tmp_cloud, regrow_clusters, 0.3f);
-    // valid_clusters = arvc::validate_clusters_hybrid(tmp_cloud, regrow_clusters, 0.3f, 0.3f);
-
-    pcl::IndicesPtr tmp_indices (new pcl::Indices);
-    PointCloud::Ptr tmp_cloud_2 (new PointCloud); 
     for(int clus_indx : valid_clusters)
-    {
-      *tmp_indices = regrow_clusters[clus_indx].indices;
-      tmp_cloud_2 = arvc::extract_indices(tmp_cloud, tmp_indices);
-      *cloud_out_xyz += *tmp_cloud_2;
-    }
+      coarse_truss_indices->insert(coarse_truss_indices->end(), regrow_clusters[clus_indx].indices.begin(), regrow_clusters[clus_indx].indices.end());
 
-    // cloud_out_xyz = arvc::radius_outlier_removal(cloud_out_xyz, 0.05f, 5);
-    (this->visualize) ? arvc::visualizeCloud(cloud_out_xyz) : void();
-    *this->cloud_out = *cloud_out_xyz;
+    // cout << "Coarse truss indices size: " << coarse_truss_indices->size() << endl;
+    *this->truss_idx = *coarse_truss_indices;
+    *this->ground_idx = *arvc::inverseIndices(this->cloud_in, this->truss_idx);
+    this->cloud_out = arvc::extract_indices(this->cloud_in, this->truss_idx, false);
+    // cout << "Showing cloud after valid clusters" << endl;
+    // (this->visualize) ?  arvc::visualizeCloud(this->cloud_out) : void();
+
+
+
+    this->truss_idx = arvc::radius_outlier_removal(this->cloud_in, this->truss_idx, 0.1f, 5, false);
+    this->ground_idx = arvc::inverseIndices(this->cloud_in, this->truss_idx);
+
+    this->cloud_out = arvc::extract_indices(this->cloud_in, this->truss_idx, false);
+
+    (this->visualize) ?  arvc::visualizeClouds(this->cloud_in, this->cloud_out) : void();
+
+    // Compute metrics
+    if(this->compute_metrics)
+    {
+      this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::computeMetrics(cm);
+    }
 
     return 0;
   }
@@ -230,14 +254,14 @@ int main(int argc, char **argv)
   std::cout << YELLOW << "Running your code..." << RESET << std::endl;
   auto start = std::chrono::high_resolution_clock::now();
 
-  vector<float> precision;
-  vector<float> recall;
-  vector<float> f1_score;
-  vector<float> accuracy;
-  vector<int> tp_vector;
-  vector<int> tn_vector;
-  vector<int> fp_vector;
-  vector<int> fn_vector;
+  vector<float> precision{};
+  vector<float> recall{};
+  vector<float> f1_score{};
+  vector<float> accuracy{};
+  vector<int> tp_vector{};
+  vector<int> tn_vector{};
+  vector<int> fp_vector{};
+  vector<int> fn_vector{};
 
   std::vector<fs::path> path_vector;
   // EVERY CLOUD IN THE CURRENT FOLDER
@@ -252,18 +276,24 @@ int main(int argc, char **argv)
 
     for(const fs::path &entry : tq::tqdm(path_vector))
     {
-      remove_ground rg(entry);
+      segment_planes rg(entry);
       rg.visualize = false;
+      rg.compute_metrics = true;
       rg.run();
-      accuracy.push_back(rg.metricas.accuracy);
-      precision.push_back(rg.metricas.precision);
-      recall.push_back(rg.metricas.recall);
-      f1_score.push_back(rg.metricas.f1_score);
-      tp_vector.push_back(rg.cm.TP);
-      tn_vector.push_back(rg.cm.TN);
-      fp_vector.push_back(rg.cm.FP);
-      fn_vector.push_back(rg.cm.FN);
+
+      if(rg.compute_metrics)
+      {
+        accuracy.push_back(rg.metricas.accuracy);
+        precision.push_back(rg.metricas.precision);
+        recall.push_back(rg.metricas.recall);
+        f1_score.push_back(rg.metricas.f1_score);
+        tp_vector.push_back(rg.cm.TP);
+        tn_vector.push_back(rg.cm.TN);
+        fp_vector.push_back(rg.cm.FP);
+        fn_vector.push_back(rg.cm.FN);
+      }
     }
+
 
     cout << endl;
     cout << "Accuracy: " << arvc::mean(accuracy) << endl;
@@ -283,14 +313,36 @@ int main(int argc, char **argv)
   {
     // Get the input data
     fs::path entry = argv[1];
-  
     remove_ground rg(entry);
-    rg.visualize = false;
+  
+    // segment_planes rg(entry);
+    rg.visualize = true;
+    rg.compute_metrics = true;
     rg.run();
 
+    if(rg.compute_metrics){
+      accuracy.push_back(rg.metricas.accuracy);
+      precision.push_back(rg.metricas.precision);
+      recall.push_back(rg.metricas.recall);
+      f1_score.push_back(rg.metricas.f1_score);
+      tp_vector.push_back(rg.cm.TP);
+      tn_vector.push_back(rg.cm.TN);
+      fp_vector.push_back(rg.cm.FP);
+      fn_vector.push_back(rg.cm.FN);
+    }
 
 
   }
+
+    cout << endl;
+    cout << "Accuracy: " << arvc::mean(accuracy) << endl;
+    cout << "Precision: " << arvc::mean(precision) << endl;
+    cout << "Recall: " << arvc::mean(recall) << endl;
+    cout << "F1 Score: " << arvc::mean(f1_score) << endl;
+    cout << "TP: " << arvc::mean(tp_vector) << endl;
+    cout << "TN: " << arvc::mean(tn_vector) << endl;
+    cout << "FP: " << arvc::mean(fp_vector) << endl;
+    cout << "FN: " << arvc::mean(fn_vector) << endl;
 
 
   auto stop = std::chrono::high_resolution_clock::now();

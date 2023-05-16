@@ -80,8 +80,8 @@ target_link_libraries(arvc_check_real_dataset_pcd ${PCL_LIBRARIES})
 # add_executable(arvc_random_sampling src/pointclouds/random_sampling.cpp)
 # target_link_libraries(arvc_random_sampling ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-# add_executable(arvc_plot_by_binary_label src/pointclouds/plot_by_binary_label.cpp)
-# target_link_libraries(arvc_plot_by_binary_label ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(arvc_plot_by_binary_label src/pointclouds/visualization/plot_by_binary_label.cpp)
+target_link_libraries(arvc_plot_by_binary_label ${PCL_LIBRARIES})
 
 # add_executable(arvc_replace_field src/pointclouds/replace_field.cpp)
 # target_link_libraries(arvc_replace_field ${catkin_LIBRARIES} ${PCL_LIBRARIES})
