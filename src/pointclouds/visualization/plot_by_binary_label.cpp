@@ -18,7 +18,8 @@ typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 typedef pcl::PointXYZL PointI;
 typedef pcl::PointCloud<PointI> PointCloudI;
-
+typedef pcl::PointXYZL PointL;
+typedef pcl::PointCloud<PointL> PointCloudL;
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -29,22 +30,22 @@ namespace fs = std::filesystem;
    * @param path Ruta de la nube de puntos
    * @return PointCloudI::Ptr 
    */
-  PointCloudI::Ptr 
+  PointCloudL::Ptr 
   readCloud (fs::path _path)
   {
-    PointCloudI::Ptr _cloud_intensity (new PointCloudI);
+    PointCloudL::Ptr _cloud_label (new PointCloudL);
     map<string, int> ext_map = {{".pcd", 0}, {".ply", 1}};
 
     switch (ext_map[_path.extension().string()])
     {
       case 0: {
         pcl::PCDReader pcd_reader;
-        pcd_reader.read(_path.string(), *_cloud_intensity);
+        pcd_reader.read(_path.string(), *_cloud_label);
         break;
       }
       case 1: {
         pcl::PLYReader ply_reader;
-        ply_reader.read(_path.string(), *_cloud_intensity);
+        ply_reader.read(_path.string(), *_cloud_label);
         break;
       }
       default: {
@@ -53,19 +54,19 @@ namespace fs = std::filesystem;
       }
     }
 
-    return _cloud_intensity;
+    return _cloud_label;
   }
 
 
 
-void plotCloud(PointCloudI::Ptr &cloud)
+void plotCloud(PointCloudL::Ptr &cloud)
 {
 
-  PointCloudI::Ptr truss_cloud (new PointCloudI);
-  PointCloudI::Ptr env_cloud (new PointCloudI);
+  PointCloudL::Ptr truss_cloud (new PointCloudL);
+  PointCloudL::Ptr env_cloud (new PointCloudL);
 
   // Create the filtering object
-  pcl::PassThrough<PointI> pass;
+  pcl::PassThrough<PointL> pass;
   pass.setInputCloud (cloud);
   pass.setFilterFieldName ("label");
   pass.setFilterLimits (0.0, 0.0);
@@ -96,12 +97,12 @@ void plotCloud(PointCloudI::Ptr &cloud)
   
 
   Eigen::Vector3f position(pos[0], pos[1], pos[2]);
-  visualizer.addCube(position, ori, 0.05, 0.05, 0.05, "sensor_origin");
-  pcl::visualization::PointCloudColorHandlerCustom<PointI> truss_color (truss_cloud, 0,200,0);
-  visualizer.addPointCloud<PointI>(truss_cloud, truss_color, "truss_cloud");
+  visualizer.addCube(position, ori, 0.1, 0.1, 0.1, "sensor_origin");
+  pcl::visualization::PointCloudColorHandlerCustom<PointL> truss_color (truss_cloud, 0,200,0);
+  visualizer.addPointCloud<PointL>(truss_cloud, truss_color, "truss_cloud");
 
-  pcl::visualization::PointCloudColorHandlerCustom<PointI> env_color (env_cloud, 150, 150, 150);
-  visualizer.addPointCloud<PointI>(env_cloud, env_color, "env_cloud");
+  pcl::visualization::PointCloudColorHandlerCustom<PointL> env_color (env_cloud, 150, 150, 150);
+  visualizer.addPointCloud<PointL>(env_cloud, env_color, "env_cloud");
 
   visualizer.addCoordinateSystem(0.01,0,0,0, "sensor_origin");
 
@@ -111,72 +112,74 @@ void plotCloud(PointCloudI::Ptr &cloud)
 
 }
 
-// myRGB randRGB()
-// {
-//   myRGB color;
-//   color.r = rand() % 256;
-//   color.g = rand() % 256;
-//   color.b = rand() % 256;
+/* OTHER WAY TO PLOT CLOUD IN COLORS
+myRGB randRGB()
+{
+  myRGB color;
+  color.r = rand() % 256;
+  color.g = rand() % 256;
+  color.b = rand() % 256;
 
-//   return color;
-// }
-
-
-// void plotCloud(fs::path path_to_cloud, int min_points = 20, int max_points = 1000)
-// {
-//   PointCloud::Ptr cloud (new PointCloud);
-//   PointCloud::Ptr tmp_cloud (new PointCloud);
-//   PointCloud::Ptr truss_cloud (new PointCloud);
+  return color;
+}
 
 
-//   pcl::PointIndices::Ptr indices (new pcl::PointIndices ());
-//   pcl::ExtractIndices<PointT> extract;
-//   extract.setInputCloud(cloud);
+void plotCloud(fs::path path_to_cloud, int min_points = 20, int max_points = 1000)
+{
+  PointCloud::Ptr cloud (new PointCloud);
+  PointCloud::Ptr tmp_cloud (new PointCloud);
+  PointCloud::Ptr truss_cloud (new PointCloud);
 
-//   std::string ext = path_to_cloud.extension();
-//   if(ext == ".pcd")
-//   {
-//     pcl::PCDReader reader;
-//     reader.read(path_to_cloud, *cloud);
-//   }  
-//   else
-//   {
-//     pcl::PLYReader reader;
-//     reader.read(path_to_cloud, *cloud);
-//   }
+
+  pcl::PointIndices::Ptr indices (new pcl::PointIndices ());
+  pcl::ExtractIndices<PointT> extract;
+  extract.setInputCloud(cloud);
+
+  std::string ext = path_to_cloud.extension();
+  if(ext == ".pcd")
+  {
+    pcl::PCDReader reader;
+    reader.read(path_to_cloud, *cloud);
+  }  
+  else
+  {
+    pcl::PLYReader reader;
+    reader.read(path_to_cloud, *cloud);
+  }
     
-//   std::cout << path_to_cloud.stem().string() << std::endl;
+  std::cout << path_to_cloud.stem().string() << std::endl;
     
-//   indices.reset(new pcl::PointIndices);
-//   indices = findValue(cloud, 0);
-//   // std::cout << "Index " << i << ": " << indices->indices.size() << std::endl;
+  indices.reset(new pcl::PointIndices);
+  indices = findValue(cloud, 0);
+  // std::cout << "Index " << i << ": " << indices->indices.size() << std::endl;
 
-//   extract.setIndices(indices);
-//   extract.filter(*tmp_cloud);
+  extract.setIndices(indices);
+  extract.filter(*tmp_cloud);
 
-//   extract.setNegative(true);
-//   extract.filter(*truss_cloud);
+  extract.setNegative(true);
+  extract.filter(*truss_cloud);
 
-//   pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color (tmp_cloud, 100, 100, 100);
-//   visualizer->addPointCloud<PointT>(tmp_cloud, single_color, "tmp_cloud");
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color (tmp_cloud, 100, 100, 100);
+  visualizer->addPointCloud<PointT>(tmp_cloud, single_color, "tmp_cloud");
 
-//   pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0, 255, 0);
-//   visualizer->addPointCloud<PointT>(truss_cloud, truss_color, "truss_cloud");
-// }
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0, 255, 0);
+  visualizer->addPointCloud<PointT>(truss_cloud, truss_color, "truss_cloud");
+}
 
-// void getlastkey()
-// {
-//   while(!visualizer->wasStopped())
-//   {
-//     std::getchar();
-//     button = true;
-//   }
-// }
+void getlastkey()
+{
+  while(!visualizer->wasStopped())
+  {
+    std::getchar();
+    button = true;
+  }
+}
+*/
 
 int main(int argc, char **argv)
 {
   fs::path current_path = fs::current_path();
-  PointCloudI::Ptr cloud_in (new PointCloudI);
+  PointCloudL::Ptr cloud_in (new PointCloudL);
 
   if(argc < 2)
   {
