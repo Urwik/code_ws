@@ -47,8 +47,8 @@ target_link_libraries(arvc_check_real_dataset_pcd ${PCL_LIBRARIES})
 # add_executable(arvc_pcd2ply src/pointclouds/pcd2ply.cpp)
 # target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 
-# add_executable(arvc_compute_normals src/pointclouds/compute_normals.cpp)
-# target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
+add_executable(arvc_compute_normals src/pointclouds/features/compute_normals.cpp)
+target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 
 # add_executable(arvc_compute_normals_XYZ src/pointclouds/compute_normals_XYZ.cpp)
 # target_link_libraries(arvc_compute_normals_XYZ ${PCL_LIBRARIES})
@@ -83,6 +83,8 @@ target_link_libraries(arvc_check_real_dataset_pcd ${PCL_LIBRARIES})
 add_executable(arvc_plot_by_binary_label src/pointclouds/visualization/plot_by_binary_label.cpp)
 target_link_libraries(arvc_plot_by_binary_label ${PCL_LIBRARIES})
 
+add_executable(arvc_plot_correct_vs_wrong src/pointclouds/visualization/plot_correct_vs_wrong.cpp)
+target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES})
 # add_executable(arvc_replace_field src/pointclouds/replace_field.cpp)
 # target_link_libraries(arvc_replace_field ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
