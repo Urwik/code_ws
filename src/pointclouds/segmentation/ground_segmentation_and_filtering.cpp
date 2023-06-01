@@ -38,6 +38,9 @@ public:
   metrics metricas;
   conf_matrix cm;
 
+  int normals_time;
+  int metrics_time;
+
   bool visualize;
   bool compute_metrics;
 
@@ -59,6 +62,8 @@ public:
 
     this->visualize = false;
     this->compute_metrics = false;
+    this->normals_time = 0;
+    this->metrics_time = 0;
   }
 
   ~remove_ground()
@@ -67,6 +72,8 @@ public:
     this->cloud_in->clear();
     this->cloud_out->clear();
     this->visualize = false;
+    this->normals_time = 0;
+    this->metrics_time = 0;
   }
 
   void
@@ -110,8 +117,6 @@ public:
     vector<pcl::PointIndices> regrow_clusters;
     vector<int> valid_clusters;
 
-
-
     // Read pointcloud
     cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
     ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
@@ -124,23 +129,33 @@ public:
     // EXTRACT BIGGEST PLANE
     // This is temporal, only for get the correct biggest plane
     tmp_cloud = arvc::voxel_filter(this->cloud_in, 0.05f);
-    tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true ,0.5f, 1000);
+
+    tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true, 0.5f, 1000);
     auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, tmp_plane_coefss, 0.5f);
     coarse_ground_indices = coarse_indices.first;
     coarse_truss_indices = coarse_indices.second;
-
-    PointCloud::Ptr coarse_ground_cloud (new PointCloud);
-    PointCloud::Ptr coarse_truss_cloud (new PointCloud);
-    coarse_ground_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
-    // (this->visualize) ? arvc::visualizeCloud(coarse_ground_cloud, 0, 0, 170) : void();
-    coarse_truss_cloud = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
-    // (this->visualize) ? arvc::visualizeCloud(coarse_truss_cloud, 0, 0, 170) : void();
-    arvc::visualizeClouds(coarse_truss_cloud, 0, 0, 170, coarse_ground_cloud, 0, 0, 170);
     
 
+
+    // CHECK CLOUDS
+    if(this->visualize)
+    {
+      PointCloud::Ptr coarse_ground_cloud (new PointCloud);
+      PointCloud::Ptr coarse_truss_cloud (new PointCloud);
+
+      coarse_ground_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
+      coarse_truss_cloud = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
+      arvc::visualizeClouds(coarse_truss_cloud, coarse_ground_cloud);
+    }
+
+
+
     // FILTER CLUSTERS BY EIGEN VALUES
-    // cloud_out_xyz = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
-    regrow_clusters = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
+    std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
+    regrow_clusters = regrow_output.first;
+    this->normals_time = regrow_output.second;
+
+    // VALIDATE CLUSTERS FROM THEIR EIGENVALUES
     // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, 0.15f);
     // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1000.0f);
     valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
@@ -150,76 +165,70 @@ public:
 
     *this->truss_idx = *coarse_truss_indices;
     *this->ground_idx = *arvc::inverseIndices(this->cloud_in, this->truss_idx);
-    // *this->ground_idx = *arvc::ownInverseIndices(this->cloud_in, coarse_truss_indices);
 
 
 
     // FILTER CLOUD BY DENISTY
     this->truss_idx = arvc::radius_outlier_removal(this->cloud_in, this->truss_idx, 0.1f, 5, false);
-
-
-
-
     this->ground_idx = arvc::inverseIndices(this->cloud_in, this->truss_idx);
-    // this->ground_idx = arvc::ownInverseIndices(this->cloud_in, this->truss_idx);
+
+
+
+    // FINAL CLOUD
     this->cloud_out = arvc::extract_indices(this->cloud_in, this->truss_idx, false);
-    tmp_cloud = arvc::extract_indices(this->cloud_in, this->ground_idx, false);
-    (this->visualize) ?  arvc::visualizeClouds(this->cloud_out,0,0,170, tmp_cloud,0,0,170) : void();
+    // tmp_cloud = arvc::extract_indices(this->cloud_in, this->ground_idx, false);
+    // (this->visualize) ?  arvc::visualizeClouds(this->cloud_out,0,0,170, tmp_cloud,0,0,170) : void();
 
 
-    this->getConfMatrixIndexes();
 
-    PointCloud::Ptr error_cloud (new PointCloud);
-    PointCloud::Ptr truss_cloud (new PointCloud);
-    PointCloud::Ptr ground_cloud (new PointCloud);
-    pcl::IndicesPtr error_idx (new pcl::Indices);
+    if(this->visualize){
+      this->getConfMatrixIndexes();
+      PointCloud::Ptr error_cloud (new PointCloud);
+      PointCloud::Ptr truss_cloud (new PointCloud);
+      PointCloud::Ptr ground_cloud (new PointCloud);
+      pcl::IndicesPtr error_idx (new pcl::Indices);
 
-    error_idx->insert(error_idx->end(), this->fp_idx->begin(), this->fp_idx->end());
-    error_idx->insert(error_idx->end(), this->fn_idx->begin(), this->fn_idx->end());
+      error_idx->insert(error_idx->end(), this->fp_idx->begin(), this->fp_idx->end());
+      error_idx->insert(error_idx->end(), this->fn_idx->begin(), this->fn_idx->end());
 
-    truss_cloud = arvc::extract_indices(cloud_in, this->tp_idx, false);
-    ground_cloud = arvc::extract_indices(cloud_in,this->tn_idx, false);
-    error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
+      truss_cloud = arvc::extract_indices(cloud_in, this->tp_idx, false);
+      ground_cloud = arvc::extract_indices(cloud_in,this->tn_idx, false);
+      error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
 
-    pcl::visualization::PCLVisualizer my_vis;
-    my_vis.setBackgroundColor(1,1,1);
+      pcl::visualization::PCLVisualizer my_vis;
+      my_vis.setBackgroundColor(1,1,1);
 
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 255,0,0);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 255,0,0);
 
-    my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
-    my_vis.addPointCloud(ground_cloud, ground_color, "wrong_cloud");
-    my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
+      my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
+      my_vis.addPointCloud(ground_cloud, ground_color, "wrong_cloud");
+      my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
 
-    while (!my_vis.wasStopped())
-    {
-      my_vis.spinOnce(100);
+      my_vis.addCoordinateSystem(0.8, "sensor_origin");
+      auto pos = cloud_in->sensor_origin_;
+      auto ori = cloud_in->sensor_orientation_;
+      
+      Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+      my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
+
+      while (!my_vis.wasStopped())
+      {
+        my_vis.spinOnce(100);
+      }
     }
-  
 
-
-    (this->visualize) ?  arvc::visualizeClouds(this->cloud_in,0,0,170, this->cloud_out,0,0,170) : void();
-
-
+    auto start = std::chrono::high_resolution_clock::now();
     // Compute metrics
     if(this->compute_metrics)
     {
       this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
       this->metricas = arvc::computeMetrics(cm);
     }
-    // cout << "Confusion Matrix: " << endl;
-    // cout << "\tTP: " << cm.TP << endl;
-    // cout << "\tTN: " << cm.TN << endl;
-    // cout << "\tFP: " << cm.FP << endl;
-    // cout << "\tFN: " << cm.FN << endl;
-
-    // cout << "Metrics: " << endl;
-    // cout << "\tAccuracy: " << my_metrics.accuracy << endl;
-    // cout << "\tPrecision: " << my_metrics.precision << endl;
-    // cout << "\tRecall: " << my_metrics.recall << endl;
-    // cout << "\tF1_Score: " << my_metrics.f1_score << endl;
-
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    this->metrics_time = duration.count();
 
     return 0;
   }
@@ -270,7 +279,7 @@ public:
 
     // EXTRACT BIGGEST PLANE
     // This is temporal, only for get the correct biggest plane
-    tmp_cloud = arvc::voxel_filter(this->cloud_in, idx_passed_density, 0.05f);
+    // tmp_cloud = arvc::voxel_filter(this->cloud_in, idx_passed_density, 0.05f);
     tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true ,0.2f, 1000);
     auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, idx_passed_density, tmp_plane_coefss, 0.2f);
     coarse_ground_indices = coarse_indices.first;
@@ -281,13 +290,17 @@ public:
     coarse_ground_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
     coarse_truss_cloud = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
     
-    cout << "Coarse truss vs Coarse Ground" << endl;
-    arvc::visualizeClouds(coarse_truss_cloud, 0, 0, 170, coarse_ground_cloud, 0, 0, 170);
+    if(this->visualize){
+      cout << "Coarse truss vs Coarse Ground" << endl;
+      arvc::visualizeClouds(coarse_truss_cloud, 0, 0, 170, coarse_ground_cloud, 0, 0, 170);
+    }
     
 
     // FILTER CLUSTERS BY EIGEN VALUES
-    // cloud_out_xyz = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
-    regrow_clusters = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
+    std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
+    regrow_clusters = regrow_output.first;
+    this->normals_time += regrow_output.second;
+
     // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, 0.15f);
     // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1000.0f);
     valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
@@ -306,38 +319,39 @@ public:
 
     this->getConfMatrixIndexes();
 
-    PointCloud::Ptr error_cloud (new PointCloud);
-    PointCloud::Ptr truss_cloud (new PointCloud);
-    PointCloud::Ptr ground_cloud (new PointCloud);
-    pcl::IndicesPtr error_idx (new pcl::Indices);
-
-    error_idx->insert(error_idx->end(), this->fp_idx->begin(), this->fp_idx->end());
-    error_idx->insert(error_idx->end(), this->fn_idx->begin(), this->fn_idx->end());
-
-    truss_cloud = arvc::extract_indices(cloud_in, this->tp_idx, false);
-    ground_cloud = arvc::extract_indices(cloud_in,this->tn_idx, false);
-    error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
-
-    pcl::visualization::PCLVisualizer my_vis;
-    my_vis.setBackgroundColor(1,1,1);
-
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 255,0,0);
-
-    my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
-    my_vis.addPointCloud(ground_cloud, ground_color, "wrong_cloud");
-    my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
-
-    while (!my_vis.wasStopped())
+    if(this->visualize)
     {
-      my_vis.spinOnce(100);
+      PointCloud::Ptr error_cloud (new PointCloud);
+      PointCloud::Ptr truss_cloud (new PointCloud);
+      PointCloud::Ptr ground_cloud (new PointCloud);
+      pcl::IndicesPtr error_idx (new pcl::Indices);
+
+      error_idx->insert(error_idx->end(), this->fp_idx->begin(), this->fp_idx->end());
+      error_idx->insert(error_idx->end(), this->fn_idx->begin(), this->fn_idx->end());
+
+      truss_cloud = arvc::extract_indices(cloud_in, this->tp_idx, false);
+      ground_cloud = arvc::extract_indices(cloud_in,this->tn_idx, false);
+      error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
+
+      pcl::visualization::PCLVisualizer my_vis;
+      my_vis.setBackgroundColor(1,1,1);
+
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 255,0,0);
+
+      my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
+      my_vis.addPointCloud(ground_cloud, ground_color, "wrong_cloud");
+      my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
+
+      while (!my_vis.wasStopped())
+      {
+        my_vis.spinOnce(100);
+      }
+
+
+      (this->visualize) ?  arvc::visualizeClouds(this->cloud_in,0,0,170, this->cloud_out,0,0,170) : void();
     }
-  
-
-
-    (this->visualize) ?  arvc::visualizeClouds(this->cloud_in,0,0,170, this->cloud_out,0,0,170) : void();
-
 
     // Compute metrics
     if(this->compute_metrics)
@@ -470,6 +484,12 @@ int main(int argc, char **argv)
   vector<int> fp_vector{};
   vector<int> fn_vector{};
 
+  bool visualize = true;
+  bool compute_metrics = true;
+
+  int normals_time = 0;
+  int metrics_time = 0;
+
   std::vector<fs::path> path_vector;
   // EVERY CLOUD IN THE CURRENT FOLDER
   if(argc < 2)
@@ -484,9 +504,11 @@ int main(int argc, char **argv)
     for(const fs::path &entry : tq::tqdm(path_vector))
     {
       remove_ground rg(entry);
-      rg.visualize = false;
-      rg.compute_metrics = true;
+      rg.visualize = visualize;
+      rg.compute_metrics = compute_metrics;
       rg.run();
+      normals_time += rg.normals_time;
+      metrics_time += rg.metrics_time;
 
       if(rg.compute_metrics)
       {
@@ -499,19 +521,7 @@ int main(int argc, char **argv)
         fp_vector.push_back(rg.cm.FP);
         fn_vector.push_back(rg.cm.FN);
       }
-    }
-
-
-    cout << endl;
-    cout << "Accuracy: " << arvc::mean(accuracy) << endl;
-    cout << "Precision: " << arvc::mean(precision) << endl;
-    cout << "Recall: " << arvc::mean(recall) << endl;
-    cout << "F1 Score: " << arvc::mean(f1_score) << endl;
-    cout << "TP: " << arvc::mean(tp_vector) << endl;
-    cout << "TN: " << arvc::mean(tn_vector) << endl;
-    cout << "FP: " << arvc::mean(fp_vector) << endl;
-    cout << "FN: " << arvc::mean(fn_vector) << endl;
-    
+    } 
   }
 
 
@@ -523,10 +533,12 @@ int main(int argc, char **argv)
     remove_ground rg(entry);
   
     // segment_planes rg(entry);
-    rg.visualize = true;
-    rg.compute_metrics = true;
-    // rg.run();
-    rg.run2();
+    rg.visualize = visualize;
+    rg.compute_metrics = compute_metrics;
+    rg.run();
+    // rg.run2();
+    normals_time += rg.normals_time;
+    metrics_time += rg.metrics_time;
 
     if(rg.compute_metrics){
       accuracy.push_back(rg.metricas.accuracy);
@@ -542,6 +554,7 @@ int main(int argc, char **argv)
 
   }
 
+  if(compute_metrics){
     cout << endl;
     cout << "Accuracy: " << arvc::mean(accuracy) << endl;
     cout << "Precision: " << arvc::mean(precision) << endl;
@@ -551,13 +564,17 @@ int main(int argc, char **argv)
     cout << "TN: " << arvc::mean(tn_vector) << endl;
     cout << "FP: " << arvc::mean(fp_vector) << endl;
     cout << "FN: " << arvc::mean(fn_vector) << endl;
-
+  }
 
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
   std::cout << YELLOW << "Code end!!" << RESET << std::endl;
-  std::cout << "Computation Time: " << duration.count() << " ms" << std::endl;
+  std::cout << "Num of files: " << path_vector.size() << std::endl;
+  std::cout << "Total Computation Time: " << duration.count() << " ms" << std::endl;
+  std::cout << "Computation time without normal estimation: " << duration.count() - normals_time << " ms" << std::endl;
   cout << "Average Computation Time: " << duration.count()/path_vector.size() << " ms" << endl;
+  cout << "Average Computation Time Without normal estimation and metrics: " << (duration.count()-normals_time-metrics_time)/path_vector.size() << " ms" << endl;
+
   return 0;
 }

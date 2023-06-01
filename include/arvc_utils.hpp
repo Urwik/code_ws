@@ -263,7 +263,7 @@ namespace arvc
    * @return std::vector<pcl::PointIndices> Vector con los indices pertenecientes 
    * a cada agrupación 
    */
-  vector<pcl::PointIndices>
+  std::pair<vector<pcl::PointIndices>, int>
   regrow_segmentation (PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices)
   {
     auto start = std::chrono::high_resolution_clock::now();
@@ -273,14 +273,13 @@ namespace arvc
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
     tree->setInputCloud(_cloud_in);
     ne.setInputCloud(_cloud_in);
-    // ne.setIndices(_indices);
+    // ne.setIndices(_indices);   // Tiene que estar comentado para que la dimension de _cloud_normals sea igual a _cloud_in y funcione regrow
     ne.setSearchMethod(tree);
     ne.setKSearch(30);            // Por vecinos no existen normales NaN
     // ne.setRadiusSearch(0.05);  // Por radio existiran puntos cuya normal sea NaN
     ne.compute(*_cloud_normals);
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Reduced Normals Computation Time: " << duration.count() << " ms" << std::endl;
 
     // Segmentación basada en crecimiento de regiones
     vector<pcl::PointIndices> _regrow_clusters;
@@ -301,7 +300,7 @@ namespace arvc
 
     // cout << "Number of clusters: " << _regrow_clusters.size() << endl;
 
-    // Uncomment to visualize cloud
+    // // Uncomment to visualize cloud
     // pcl::visualization::PCLVisualizer vis ("PCL Visualizer");
     // pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     // color_cloud = reg.getColoredCloud();
@@ -310,7 +309,7 @@ namespace arvc
     // while (!vis.wasStopped())
     //   vis.spinOnce();
 
-    return _regrow_clusters;
+    return std::pair<vector<pcl::PointIndices>, int> {_regrow_clusters, duration.count()};
   }
 
   /**
@@ -461,15 +460,6 @@ namespace arvc
     pcl::PointXYZ point;
     pcl::IndicesPtr _plane_inliers (new pcl::Indices);
     pcl::IndicesPtr _plane_outliers (new pcl::Indices);
-  
-  
-    // PointCloud::Ptr _cloud_out (new PointCloud);
-    // pcl::ExtractIndices<PointT> extract;
-    // extract.setInputCloud(_cloud_in);
-    // extract.setIndices(_indices);
-    // extract.setNegative(negative);
-    // extract.filter(*_cloud_out);
-
 
     for (size_t indx = 0; indx < _cloud_in->points.size(); indx++)
     {
@@ -577,9 +567,6 @@ namespace arvc
       clust_indx++;
     }
 
-    // if (valid_clusters.size() == 0)
-    //   cout << "\tNo valid clusters found" << endl;
-
     return valid_clusters;
   }
 
@@ -636,8 +623,8 @@ namespace arvc
       *current_cluster = cluster.indices;
       auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
       float size_ratio = eig_values(1)/eig_values(2);
-      cout << "Eig values: " << eig_values(1) << ", " << eig_values(2) << endl;
-      cout << "Ratio: " << size_ratio << endl;
+      // cout << "Eig values: " << eig_values(1) << ", " << eig_values(2) << endl;
+      // cout << "Ratio: " << size_ratio << endl;
 
       if (eig_values(1) < _module_threshold && eig_values(2) < _module_threshold){
         if (size_ratio < _ratio_threshold){

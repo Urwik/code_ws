@@ -30,8 +30,8 @@ int main(int argc, char **argv)
   _cm_indices.fp_idx.reset(new pcl::Indices);
   _cm_indices.fn_idx.reset(new pcl::Indices);
 
-  fs::path gt_path("/home/fran/Desktop/network_clouds/ground_truth/00009.ply");
-  fs::path infered_path("/home/fran/Desktop/network_clouds/minkowski/00009.ply");
+  fs::path gt_path("/home/arvc/Desktop/INFERED_CLOUDS/gt/00567.ply");
+  fs::path infered_path("/home/arvc/Desktop/INFERED_CLOUDS/infered/00567.ply");
 
   gt_cloud = arvc::readCloudWithLabel(gt_path);
   _gt_idx = arvc::getGroundTruthIndices(gt_cloud);
@@ -40,6 +40,15 @@ int main(int argc, char **argv)
   _i_idx = arvc::getGroundTruthIndices(infered_cloud);
 
   cloud_in = arvc::parseToXYZ(gt_cloud);
+
+  //   // Definir el factor de escala
+  // float scalingFactor = 10.0;  // Escala de 2 (duplicar el tamaño)
+
+  // // Aplicar la transformación de escala a la nube de puntos
+  // Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+  // transform.scale(scalingFactor);
+  // pcl::PointCloud<pcl::PointXYZ>::Ptr scaledCloud(new pcl::PointCloud<pcl::PointXYZ>);
+  // pcl::transformPointCloud(*cloud_in, *cloud_in, transform);
 
   _cm_indices = arvc::compute_cm_indices(_gt_idx.truss, _gt_idx.ground, _i_idx.truss, _i_idx.ground);
 
@@ -57,6 +66,14 @@ int main(int argc, char **argv)
 
   pcl::visualization::PCLVisualizer my_vis;
   my_vis.setBackgroundColor(1,1,1);
+  
+  my_vis.addCoordinateSystem(0.8, "sensor_origin");
+  auto pos = cloud_in->sensor_origin_;
+  auto ori = cloud_in->sensor_orientation_;
+  
+  Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+  my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
+
 
   pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
   pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
