@@ -321,7 +321,7 @@ namespace arvc
     // Segmentación basada en crecimiento de regiones
     vector<pcl::PointIndices> _regrow_clusters;
     pcl::RegionGrowing<PointT, pcl::Normal> reg;
-    reg.setMinClusterSize (100);
+    reg.setMinClusterSize (50);
     reg.setMaxClusterSize (25000);
     reg.setSearchMethod (tree);
     reg.setSmoothModeFlag(false);
@@ -393,7 +393,7 @@ namespace arvc
     // Segmentación basada en crecimiento de regiones
     vector<pcl::PointIndices> _regrow_clusters;
     pcl::RegionGrowing<PointT, pcl::Normal> reg;
-    reg.setMinClusterSize (100);
+    reg.setMinClusterSize (50);
     reg.setMaxClusterSize (25000);
     reg.setSearchMethod (tree);
     reg.setSmoothModeFlag(false);
@@ -403,7 +403,7 @@ namespace arvc
     reg.setNumberOfNeighbours (10);
     reg.setInputCloud (_cloud_in);
     reg.setInputNormals (_cloud_normals);
-    reg.setSmoothnessThreshold (15.0 / 180.0 * M_PI);
+    reg.setSmoothnessThreshold (10.0 / 180.0 * M_PI);
     reg.extract (_regrow_clusters);
 
     // cout << "Number of clusters: " << _regrow_clusters.size() << endl;
@@ -738,8 +738,66 @@ namespace arvc
           valid_clusters.push_back(clust_indx);
           // cout << "\tValid cluster: " << GREEN << _indx << RESET << " with ratio: " << size_ratio << endl;
         }
-        // else
-          // cout << "\tInvalid cluster: " << RED << clust_indx << RESET << " with ratio: " << size_ratio << endl;
+      // else
+        // cout << "\tInvalid cluster: " << RED << clust_indx << RESET << " With Module: " << max_length << endl;
+
+      // getchar();
+      }
+      
+      clust_indx++;
+
+    // if (valid_clusters.size() == 0)
+    //   cout << "\tNo valid clusters found" << endl;
+
+    }
+    return valid_clusters;
+  }
+
+  pair<vector<int>, bool>
+  validate_clusters_hybrid_tmp(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _ratio_threshold, float _module_threshold)
+  {
+    // cout << GREEN <<"Checking regrow clusters..." << RESET << endl;
+    vector<int> valid_clusters;
+    valid_clusters.clear();
+    PointCloud::Ptr current_cluster_cloud (new PointCloud);
+    PointCloud::Ptr remain_input_cloud (new PointCloud);
+    pcl::IndicesPtr current_cluster (new pcl::Indices);
+    bool raise_flag = false;
+
+    int clust_indx = 0;
+    for(auto cluster : clusters)
+    {
+      *current_cluster = cluster.indices;
+
+      current_cluster_cloud = arvc::extract_indices(_cloud_in, current_cluster);
+      auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
+
+      // // FOR VISUALIZATION
+      // remain_input_cloud = arvc::extract_indices(_cloud_in, current_cluster, true); //FOR VISUALIZTION
+      // pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+      // viewer->removeAllPointClouds();
+      // viewer->addPointCloud<PointT> (remain_input_cloud, "original_cloud");
+      // pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color(current_cluster_cloud, 0, 255, 0);
+      // viewer->addPointCloud<PointT> (current_cluster_cloud, single_color, "current_cluster_cloud");
+
+      // while (!viewer->wasStopped ())
+      //   viewer->spinOnce(100);
+      
+
+      float size_ratio = eig_values(1)/eig_values(2);
+      float max_length = get_max_length(current_cluster_cloud);
+      // cout << "Eig values: " << eig_values(1) << ", " << eig_values(2) << endl;
+      // cout << "Ratio: " << size_ratio << endl;
+
+      if (max_length < _module_threshold)
+      {
+        // cout << "\tValid cluster: " << GREEN << clust_indx << RESET << " With Module: " << max_length << endl;
+        if (size_ratio < _ratio_threshold){
+          valid_clusters.push_back(clust_indx);
+          // cout << "\tValid cluster: " << GREEN << _indx << RESET << " with ratio: " << size_ratio << endl;
+        }
+        else
+          raise_flag = true;
       }
       // else
         // cout << "\tInvalid cluster: " << RED << clust_indx << RESET << " With Module: " << max_length << endl;
@@ -751,7 +809,7 @@ namespace arvc
     // if (valid_clusters.size() == 0)
     //   cout << "\tNo valid clusters found" << endl;
 
-    return valid_clusters;
+    return pair<vector<int>, bool> (valid_clusters, raise_flag);
   }
 
 
@@ -885,14 +943,37 @@ namespace arvc
    * @return pcl::PointCloud<pcl::PointXYZ>::Ptr
    */
   metrics
-  computeMetrics(conf_matrix cm)
+  compute_metrics(conf_matrix _cm)
   {
     metrics _metrics;
 
-    _metrics.precision = (float)cm.TP / ((float)cm.TP + (float)cm.FP);
-    _metrics.recall = (float)cm.TP / ((float)cm.TP + (float)cm.FN);
+    _metrics.precision = (float) _cm.TP / (float) ( _cm.TP + _cm.FP);
+    _metrics.recall = (float) _cm.TP / (float) ( _cm.TP + _cm.FN);
     _metrics.f1_score = 2 * (_metrics.precision * _metrics.recall) / (_metrics.precision + _metrics.recall);
-    _metrics.accuracy = (float)(cm.TP + cm.TN) / (float)(cm.TP + cm.TN + cm.FP + cm.FN);
+    _metrics.accuracy = (float)(_cm.TP + _cm.TN) / (float)(_cm.TP + _cm.TN + _cm.FP + _cm.FN);
+
+    return _metrics;
+  }
+
+  /**
+   * @brief Returns a Voxelized PointCloud
+   * 
+   * @param cloud_in 
+   * @return pcl::PointCloud<pcl::PointXYZ>::Ptr
+   */
+  metrics
+  compute_metrics(cm_indices _cm_indices)
+  {
+    metrics _metrics;
+    float TP = (float) _cm_indices.tp_idx->size();
+    float FP = (float) _cm_indices.fp_idx->size();
+    float TN = (float) _cm_indices.tn_idx->size();
+    float FN = (float) _cm_indices.fn_idx->size();
+
+    _metrics.precision = TP / (TP + FP);
+    _metrics.recall = TP / (TP + FN);
+    _metrics.f1_score = 2 * (_metrics.precision * _metrics.recall) / (_metrics.precision + _metrics.recall);
+    _metrics.accuracy = (TP + TN) / (TP + TN + FP + FN);
 
     return _metrics;
   }
@@ -908,7 +989,7 @@ namespace arvc
    * @return conf_matrix 
    */
   conf_matrix
-  computeConfusionMatrix(pcl::IndicesPtr &gt_truss_idx, pcl::IndicesPtr &gt_ground_idx,  pcl::IndicesPtr &truss_idx, pcl::IndicesPtr &ground_idx)
+  compute_conf_matrix(pcl::IndicesPtr &gt_truss_idx, pcl::IndicesPtr &gt_ground_idx,  pcl::IndicesPtr &truss_idx, pcl::IndicesPtr &ground_idx)
   {
     conf_matrix _conf_matrix;
 
@@ -919,8 +1000,6 @@ namespace arvc
     
     return _conf_matrix;
   }
-
-
   /**
    * @brief Returns a Voxelized PointCloud
    * 
