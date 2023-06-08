@@ -49,9 +49,12 @@ public:
 
   metrics metricas;
   conf_matrix cm;
+  cm_indices cm_idx;
 
   float ransac_dist_thresh;
   float truss_width;
+  float module_threshold;
+  float ratio_threshold;
 
   int normals_time;
   int metrics_time;
@@ -83,6 +86,11 @@ public:
     this->fn_idx = pcl::IndicesPtr (new pcl::Indices);
     this->tn_idx = pcl::IndicesPtr (new pcl::Indices);
 
+    this->cm_idx.fn_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->cm_idx.fp_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->cm_idx.tn_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->cm_idx.tp_idx = pcl::IndicesPtr (new pcl::Indices);
+
     this->ground_plane_coefs = pcl::ModelCoefficientsPtr (new pcl::ModelCoefficients);
 
     this->visualize = false;
@@ -91,6 +99,8 @@ public:
     this->metrics_time = 0;
     this->ransac_dist_thresh = 0.5f;
     this->truss_width = 0.2f;
+    this->module_threshold = 1.0f;
+    this->ratio_threshold = 0.3f;
   }
 
   ~remove_ground()
@@ -149,14 +159,12 @@ public:
     this->regrow_clusters = regrow_output.first;
     this->normals_time = regrow_output.second;
 
-    float ratio = this->truss_width / this->ransac_dist_thresh;
-    
     if(this->fine_mode == "ratio")
-      valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, ratio);
+      valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, this->ratio_threshold);
     else if(this->fine_mode == "module")
-      valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1.3*this->ransac_dist_thresh);
+      valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, this->module_threshold);
     else if(this->fine_mode == "hybrid")
-      this->valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, this->regrow_clusters, ratio, 1.3*this->ransac_dist_thresh);
+      this->valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, this->regrow_clusters, this->ratio_threshold, this->module_threshold);
     else
       cout << "ERROR: Invalid mode for fine segmentation. Available modes are: ratio, module, hybrid" << endl;
 
@@ -164,7 +172,7 @@ public:
 
     for(int clus_indx : this->valid_clusters)
       this->coarse_truss_indices->insert(this->coarse_truss_indices->end(), this->regrow_clusters[clus_indx].indices.begin(), this->regrow_clusters[clus_indx].indices.end());
-
+  
   }
 
   void
@@ -183,15 +191,15 @@ public:
     ground_truth_indices.ground = pcl::IndicesPtr (new pcl::Indices);
     ground_truth_indices.truss = pcl::IndicesPtr (new pcl::Indices);
     
-    // PointCloudI::Ptr cloud_in_intensity (new PointCloudI);
-    // cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
-    // ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
-    // this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
+    PointCloudI::Ptr cloud_in_intensity (new PointCloudI);
+    cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
+    ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
+    this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
     
-    PointCloudL::Ptr cloud_in_label (new PointCloudL);
-    cloud_in_label = arvc::readCloudWithLabel(this->path);
-    ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_label);
-    this->cloud_in = arvc::parseToXYZ(cloud_in_label);
+    // PointCloudL::Ptr cloud_in_label (new PointCloudL);
+    // cloud_in_label = arvc::readCloudWithLabel(this->path);
+    // ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_label);
+    // this->cloud_in = arvc::parseToXYZ(cloud_in_label);
 
     // Read pointcloud
     *this->gt_ground_idx = *ground_truth_indices.ground;
@@ -256,8 +264,8 @@ public:
     auto start = std::chrono::high_resolution_clock::now();
     if(this->compute_metrics)
     {
-      this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
-      this->metricas = arvc::computeMetrics(cm);
+      this->cm_idx = arvc::compute_cm_indices(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::compute_metrics(this->cm_idx);
     }
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -288,6 +296,7 @@ public:
     // cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
     // ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
     // this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
+
     cloud_in_label = arvc::readCloudWithLabel(this->path);
     ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_label);
     this->cloud_in = arvc::parseToXYZ(cloud_in_label);
@@ -320,29 +329,28 @@ public:
     }
 
 
+    // // FILTER CLUSTERS BY EIGEN VALUES
+    // std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices, this->visualize);
+    // // std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, this->visualize);
 
-    // FILTER CLUSTERS BY EIGEN VALUES
-    std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices, this->visualize);
-    // std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, this->visualize);
+    // regrow_clusters = regrow_output.first;
+    // this->normals_time = regrow_output.second;
 
-    regrow_clusters = regrow_output.first;
-    this->normals_time = regrow_output.second;
+    // // VALIDATE CLUSTERS FROM THEIR EIGENVALUES
+    // // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, this->ratio_threshold);
+    // // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, this->module_threshold);
+    // valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, this->ratio_threshold, this->module_threshold);
+    
+    // // valid_clusters = arvc::validate_clusters_hybrid_old(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
 
-    // VALIDATE CLUSTERS FROM THEIR EIGENVALUES
-    float ratio = this->truss_width / this->ransac_dist_thresh;
-    // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, ratio);
-    // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1.3*this->ransac_dist_thresh);
-    valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, ratio, 1.3*this->ransac_dist_thresh);
-    // valid_clusters = arvc::validate_clusters_hybrid_old(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
+    // for(int clus_indx : valid_clusters)
+    //   coarse_truss_indices->insert(coarse_truss_indices->end(), regrow_clusters[clus_indx].indices.begin(), regrow_clusters[clus_indx].indices.end());
 
-    for(int clus_indx : valid_clusters)
-      coarse_truss_indices->insert(coarse_truss_indices->end(), regrow_clusters[clus_indx].indices.begin(), regrow_clusters[clus_indx].indices.end());
+
 
 
     *this->truss_idx = *coarse_truss_indices;
     *this->ground_idx = *arvc::inverseIndices(this->cloud_in, this->truss_idx);
-
-
 
     // FILTER CLOUD BY DENISTY
     this->truss_idx = arvc::radius_outlier_removal(this->cloud_in, this->truss_idx, 0.1f, 5, false);
@@ -394,14 +402,16 @@ public:
         my_vis.spinOnce(100);
       }
     }
-
     
     // Compute metrics
     auto start = std::chrono::high_resolution_clock::now();
     if(this->compute_metrics)
     {
-      this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
-      this->metricas = arvc::computeMetrics(cm);
+      // this->cm_idx = arvc::compute_cm_indices(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      // this->metricas = arvc::compute_metrics(this->cm_idx);
+      this->cm = arvc::compute_conf_matrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::compute_metrics(this->cm);
+
     }
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -533,8 +543,8 @@ public:
     // Compute metrics
     if(this->compute_metrics)
     {
-      this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
-      this->metricas = arvc::computeMetrics(cm);
+      this->cm_idx = arvc::compute_cm_indices(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::compute_metrics(this->cm_idx);
     }
     return 0;
   }
@@ -654,7 +664,15 @@ int main(int argc, char **argv)
   bool compute_metrics = true;
   float truss_width = 0.2f;
   float ransac_height = 0.5f;
-  string fine_mode = "ratio";
+
+  float module_threshold = 0.65f;
+  float ratio_threshold = (truss_width / ransac_height);
+
+  // WO COARSE SEG
+  // float module_threshold = 1.8f;
+  // float ratio_threshold = (truss_width / module_threshold);
+
+  string fine_mode = "hybrid";
   
   
   std::cout << YELLOW << "Running your code..." << RESET << std::endl;
@@ -691,8 +709,10 @@ int main(int argc, char **argv)
       rg.compute_metrics = compute_metrics;
       rg.ransac_dist_thresh = ransac_height;
       rg.truss_width = truss_width;
-      // rg.run();
-      rg.run3();
+      rg.ratio_threshold = ratio_threshold;
+      rg.module_threshold = module_threshold;
+      rg.run();
+      // rg.run3();
 
       normals_time += rg.normals_time;
       metrics_time += rg.metrics_time;
@@ -703,6 +723,12 @@ int main(int argc, char **argv)
         precision.push_back(rg.metricas.precision);
         recall.push_back(rg.metricas.recall);
         f1_score.push_back(rg.metricas.f1_score);
+        
+        // tp_vector.push_back(rg.cm_idx.tp_idx->size());
+        // tn_vector.push_back(rg.cm_idx.tn_idx->size());
+        // fp_vector.push_back(rg.cm_idx.fp_idx->size());
+        // fn_vector.push_back(rg.cm_idx.fn_idx->size());
+        
         tp_vector.push_back(rg.cm.TP);
         tn_vector.push_back(rg.cm.TN);
         fp_vector.push_back(rg.cm.FP);
@@ -718,11 +744,15 @@ int main(int argc, char **argv)
     // Get the input data
     fs::path entry = argv[1];
     remove_ground rg(entry);
-  
-    // segment_planes rg(entry);
+    rg.fine_mode = fine_mode;
     rg.visualize = visualize;
     rg.compute_metrics = compute_metrics;
+    rg.ransac_dist_thresh = ransac_height;
+    rg.truss_width = truss_width;
+    rg.ratio_threshold = ratio_threshold;
+    rg.module_threshold = module_threshold;
     rg.run();
+    // rg.run3();
     // rg.run2();
     normals_time += rg.normals_time;
     metrics_time += rg.metrics_time;
@@ -732,10 +762,17 @@ int main(int argc, char **argv)
       precision.push_back(rg.metricas.precision);
       recall.push_back(rg.metricas.recall);
       f1_score.push_back(rg.metricas.f1_score);
+      // tp_vector.push_back(rg.cm_idx.tp_idx->size());
+      // tn_vector.push_back(rg.cm_idx.tn_idx->size());
+      // fp_vector.push_back(rg.cm_idx.fp_idx->size());
+      // fn_vector.push_back(rg.cm_idx.fn_idx->size());
+      
       tp_vector.push_back(rg.cm.TP);
       tn_vector.push_back(rg.cm.TN);
       fp_vector.push_back(rg.cm.FP);
       fn_vector.push_back(rg.cm.FN);
+
+
     }
 
 
@@ -757,10 +794,13 @@ int main(int argc, char **argv)
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
   std::cout << YELLOW << "Code end!!" << RESET << std::endl;
-  std::cout << "Num of files: " << path_vector.size() << std::endl;
-  std::cout << "Total Computation Time: " << duration.count() << " ms" << std::endl;
-  std::cout << "Computation time without normal estimation: " << duration.count() - normals_time << " ms" << std::endl;
+  cout << "Ratio Threshold: " << ratio_threshold << endl;
+  cout << "Module Threshold: " << module_threshold << endl;
+  cout << "Num of files: " << path_vector.size() << endl;
+  cout << "Total Computation Time: " << duration.count() << " ms" << endl;
   cout << "Average Computation Time: " << duration.count()/path_vector.size() << " ms" << endl;
+  cout << "Normal estimation time: " << normals_time << " ms" << endl;
+  cout << "Metrics computation time: " << metrics_time << " ms" << endl;
   cout << "Average Computation Time Without normal estimation and metrics: " << (duration.count()-normals_time-metrics_time)/path_vector.size() << " ms" << endl;
 
   return 0;
