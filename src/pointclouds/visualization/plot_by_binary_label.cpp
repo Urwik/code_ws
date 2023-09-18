@@ -75,36 +75,23 @@ void plotCloud(PointCloudL::Ptr &cloud)
   pass.setNegative(true);
   pass.filter(*truss_cloud);
 
-  // writeCloud(truss_cloud);
-
-  // Definir el factor de escala
-  float scalingFactor = 10.0;  // Escala de 2 (duplicar el tamaño)
-
-  // Aplicar la transformación de escala a la nube de puntos
-  Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-  transform.scale(scalingFactor);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr scaledCloud(new pcl::PointCloud<pcl::PointXYZ>);
-  pcl::transformPointCloud(*env_cloud, *env_cloud, transform);
-  pcl::transformPointCloud(*truss_cloud, *truss_cloud, transform);
-
-
 
   pcl::visualization::PCLVisualizer visualizer;
-  visualizer.setBackgroundColor(0,0,0);
-  visualizer.addCoordinateSystem(0.3, "sensor_origin");
-  auto pos = cloud->sensor_origin_;
-  auto ori = cloud->sensor_orientation_;
+  visualizer.setBackgroundColor(1,1,1);
+  // visualizer.addCoordinateSystem(0.3, "sensor_origin");
+  // auto pos = cloud->sensor_origin_;
+  // auto ori = cloud->sensor_orientation_;
   
 
-  Eigen::Vector3f position(pos[0], pos[1], pos[2]);
-  visualizer.addCube(position, ori, 0.1, 0.1, 0.1, "sensor_origin");
-  pcl::visualization::PointCloudColorHandlerCustom<PointL> truss_color (truss_cloud, 0,200,0);
+  // Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+  // visualizer.addCube(position, ori, 0.1, 0.1, 0.1, "sensor_origin");
+  pcl::visualization::PointCloudColorHandlerCustom<PointL> truss_color (truss_cloud, 0,255,0);
   visualizer.addPointCloud<PointL>(truss_cloud, truss_color, "truss_cloud");
 
-  pcl::visualization::PointCloudColorHandlerCustom<PointL> env_color (env_cloud, 150, 150, 150);
+  pcl::visualization::PointCloudColorHandlerCustom<PointL> env_color (env_cloud, 100, 100, 100);
   visualizer.addPointCloud<PointL>(env_cloud, env_color, "env_cloud");
 
-  visualizer.addCoordinateSystem(0.01,0,0,0, "sensor_origin");
+  //visualizer.addCoordinateSystem(0.01,0,0,0, "sensor_origin");
 
 
   while (!visualizer.wasStopped())

@@ -30,8 +30,8 @@ int main(int argc, char **argv)
   _cm_indices.fp_idx.reset(new pcl::Indices);
   _cm_indices.fn_idx.reset(new pcl::Indices);
 
-  fs::path gt_path("/home/arvc/Desktop/INFERED_CLOUDS/gt/00567.ply");
-  fs::path infered_path("/home/arvc/Desktop/INFERED_CLOUDS/infered/00567.ply");
+  fs::path gt_path("/home/arvc/Desktop/Home_PC/Datasets/infered_clouds/ground_truth/trees.ply");
+  fs::path infered_path("/home/arvc/Desktop/Home_PC/Datasets/infered_clouds/pointnet2/trees.ply");
 
   gt_cloud = arvc::readCloudWithLabel(gt_path);
   _gt_idx = arvc::getGroundTruthIndices(gt_cloud);

@@ -386,9 +386,9 @@ namespace arvc
     ne.setKSearch(30);            // Por vecinos no existen normales NaN
     // ne.setRadiusSearch(0.05);  // Por radio existiran puntos cuya normal sea NaN
     ne.compute(*_cloud_normals);
+
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    // std::cout << "Normals Computation Time: " << duration.count() << " ms" << std::endl;
 
     // Segmentación basada en crecimiento de regiones
     vector<pcl::PointIndices> _regrow_clusters;
@@ -947,10 +947,10 @@ namespace arvc
   {
     metrics _metrics;
 
-    _metrics.precision = (float) _cm.TP / (float) ( _cm.TP + _cm.FP);
-    _metrics.recall = (float) _cm.TP / (float) ( _cm.TP + _cm.FN);
-    _metrics.f1_score = 2 * (_metrics.precision * _metrics.recall) / (_metrics.precision + _metrics.recall);
-    _metrics.accuracy = (float)(_cm.TP + _cm.TN) / (float)(_cm.TP + _cm.TN + _cm.FP + _cm.FN);
+    _metrics.precision = (float)cm.TP / ((float)cm.TP + (float)cm.FP);
+    _metrics.recall = (float)cm.TP / ((float)cm.TP + (float)cm.FN);
+    _metrics.f1_score = (2 * _metrics.precision * _metrics.recall) / (_metrics.precision + _metrics.recall);
+    _metrics.accuracy = (float)(cm.TP + cm.TN) / (float)(cm.TP + cm.TN + cm.FP + cm.FN);
 
     return _metrics;
   }
@@ -1137,6 +1137,22 @@ namespace arvc
     return _indices_out;
   }
 
+  pcl::IndicesPtr
+  radius_outlier_removal (PointCloud::Ptr &_cloud_in, float radius, int minNeighbors, bool negative = false)
+  {
+    PointCloud::Ptr _cloud_out (new PointCloud);
+    pcl::IndicesPtr _indices_out (new pcl::Indices);
+    pcl::RadiusOutlierRemoval<PointT> radius_removal;
+    radius_removal.setInputCloud(_cloud_in);
+    radius_removal.setRadiusSearch(radius);
+    radius_removal.setMinNeighborsInRadius(minNeighbors);
+    radius_removal.setNegative(negative);
+    radius_removal.filter(*_indices_out);
+
+    return _indices_out;
+  }
+
+
   float
   mean(vector<float> v)
   {
@@ -1245,6 +1261,16 @@ namespace arvc
     return _cloud_normals;
   }
 
+  PointCloud::Ptr
+  scale_cloud(PointCloud::Ptr &_cloud_in, float _scaling_factor)
+  {
+    PointCloud::Ptr scaledCloud(new PointCloud);
 
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    transform.scale(_scaling_factor);
+    pcl::transformPointCloud(*_cloud_in, *scaledCloud, transform);
+
+    return scaledCloud;
+  }
 
 }
