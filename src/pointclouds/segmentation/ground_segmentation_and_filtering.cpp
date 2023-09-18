@@ -124,8 +124,8 @@ public:
     *this->gt_truss_idx = *ground_truth_indices.truss;
     this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
 
-
-
+    // ***********************************************************************//
+    // COARSE SEGMENTATITION
     // EXTRACT BIGGEST PLANE
     // This is temporal, only for get the correct biggest plane
     tmp_cloud = arvc::voxel_filter(this->cloud_in, 0.05f);
@@ -148,25 +148,28 @@ public:
       arvc::visualizeClouds(coarse_truss_cloud, coarse_ground_cloud);
     }
 
+    // // ***********************************************************************//
+    // // FINE SEGMENTATION
+    // // FILTER CLUSTERS BY EIGEN VALUES
+    // std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
+    // // std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in);
+
+    // regrow_clusters = regrow_output.first;
+    // this->normals_time = regrow_output.second;
+
+    // // VALIDATE CLUSTERS FROM THEIR EIGENVALUES
+    // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, 0.3f);
+    // // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1000.0f);
+    // // valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
+
+    // for(int clus_indx : valid_clusters)
+    //   coarse_truss_indices->insert(coarse_truss_indices->end(), regrow_clusters[clus_indx].indices.begin(), regrow_clusters[clus_indx].indices.end());
 
 
-    // FILTER CLUSTERS BY EIGEN VALUES
-    std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
-    regrow_clusters = regrow_output.first;
-    this->normals_time = regrow_output.second;
 
-    // VALIDATE CLUSTERS FROM THEIR EIGENVALUES
-    // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, 0.15f);
-    // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1000.0f);
-    valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
-
-    for(int clus_indx : valid_clusters)
-      coarse_truss_indices->insert(coarse_truss_indices->end(), regrow_clusters[clus_indx].indices.begin(), regrow_clusters[clus_indx].indices.end());
 
     *this->truss_idx = *coarse_truss_indices;
     *this->ground_idx = *arvc::inverseIndices(this->cloud_in, this->truss_idx);
-
-
 
     // FILTER CLOUD BY DENISTY
     this->truss_idx = arvc::radius_outlier_removal(this->cloud_in, this->truss_idx, 0.1f, 5, false);
@@ -243,84 +246,83 @@ public:
 
     pcl::IndicesPtr coarse_ground_indices (new pcl::Indices);
     pcl::IndicesPtr coarse_truss_indices (new pcl::Indices);
-    pcl::IndicesPtr idx_removed_by_density (new pcl::Indices);
-    pcl::IndicesPtr idx_passed_density (new pcl::Indices);
-
-
     pcl::ModelCoefficientsPtr tmp_plane_coefss (new pcl::ModelCoefficients);
 
     gt_indices ground_truth_indices;
     ground_truth_indices.ground = pcl::IndicesPtr (new pcl::Indices);
     ground_truth_indices.truss = pcl::IndicesPtr (new pcl::Indices);
 
+    pcl::IndicesPtr idx_high_density (new pcl::Indices);
+    pcl::IndicesPtr idx_low_density (new pcl::Indices);
+
     vector<pcl::PointIndices> regrow_clusters;
     vector<int> valid_clusters;
-
-
 
     // Read pointcloud
     cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
     ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
     *this->gt_ground_idx = *ground_truth_indices.ground;
     *this->gt_truss_idx = *ground_truth_indices.truss;
-
-    // FILTER CLOUD BY DENISTY
-    pcl::RadiusOutlierRemoval<PointI> radius_removal;
-    radius_removal.setInputCloud(cloud_in_intensity);
-    radius_removal.setRadiusSearch(0.1f);
-    radius_removal.setMinNeighborsInRadius(5);
-    radius_removal.setNegative(false);
-    radius_removal.filter(*idx_passed_density);
-    radius_removal.setNegative(true);
-    radius_removal.filter(*idx_removed_by_density);
- 
     this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
 
+    // APPLY DENSITY FILTER
+    idx_high_density = arvc::radius_outlier_removal(this->cloud_in, 0.1f, 5, false);
+    idx_low_density = arvc::inverseIndices(this->cloud_in, idx_high_density);
 
+
+    // ***********************************************************************//
+    // COARSE SEGMENTATITION
     // EXTRACT BIGGEST PLANE
     // This is temporal, only for get the correct biggest plane
-    // tmp_cloud = arvc::voxel_filter(this->cloud_in, idx_passed_density, 0.05f);
-    tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true ,0.2f, 1000);
-    auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, idx_passed_density, tmp_plane_coefss, 0.2f);
+    tmp_cloud = arvc::voxel_filter(this->cloud_in, idx_high_density, 0.05f);
+
+    tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true, 0.5f, 1000);
+    auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, idx_high_density, tmp_plane_coefss, 0.5f);
     coarse_ground_indices = coarse_indices.first;
     coarse_truss_indices = coarse_indices.second;
-
-    PointCloud::Ptr coarse_ground_cloud (new PointCloud);
-    PointCloud::Ptr coarse_truss_cloud (new PointCloud);
-    coarse_ground_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
-    coarse_truss_cloud = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
     
-    if(this->visualize){
-      cout << "Coarse truss vs Coarse Ground" << endl;
-      arvc::visualizeClouds(coarse_truss_cloud, 0, 0, 170, coarse_ground_cloud, 0, 0, 170);
+
+    // CHECK CLOUDS
+    if(this->visualize)
+    {
+      PointCloud::Ptr coarse_ground_cloud (new PointCloud);
+      PointCloud::Ptr coarse_truss_cloud (new PointCloud);
+
+      coarse_ground_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
+      coarse_truss_cloud = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
+      arvc::visualizeClouds(coarse_truss_cloud, coarse_ground_cloud);
     }
-    
 
+    // ***********************************************************************//
+    // FINE SEGMENTATION
     // FILTER CLUSTERS BY EIGEN VALUES
     std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, coarse_ground_indices);
-    regrow_clusters = regrow_output.first;
-    this->normals_time += regrow_output.second;
+    // std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, idx_high_density);
 
-    // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, 0.15f);
+    regrow_clusters = regrow_output.first;
+    this->normals_time = regrow_output.second;
+
+    // VALIDATE CLUSTERS FROM THEIR EIGENVALUES
+    // valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, 0.3f);
     // valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, 1000.0f);
     valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
 
     for(int clus_indx : valid_clusters)
       coarse_truss_indices->insert(coarse_truss_indices->end(), regrow_clusters[clus_indx].indices.begin(), regrow_clusters[clus_indx].indices.end());
 
+
     *this->truss_idx = *coarse_truss_indices;
     *this->ground_idx = *arvc::inverseIndices(this->cloud_in, this->truss_idx);
-    this->ground_idx->insert(this->ground_idx->end(), idx_removed_by_density->begin(), idx_removed_by_density->end());
 
+    // FINAL CLOUD
     this->cloud_out = arvc::extract_indices(this->cloud_in, this->truss_idx, false);
-    tmp_cloud = arvc::extract_indices(this->cloud_in, this->ground_idx, false);
-    (this->visualize) ?  arvc::visualizeClouds(this->cloud_out,0,0,170, tmp_cloud,0,0,170) : void();
+    // tmp_cloud = arvc::extract_indices(this->cloud_in, this->ground_idx, false);
+    // (this->visualize) ?  arvc::visualizeClouds(this->cloud_out,0,0,170, tmp_cloud,0,0,170) : void();
 
 
-    this->getConfMatrixIndexes();
 
-    if(this->visualize)
-    {
+    if(this->visualize){
+      this->getConfMatrixIndexes();
       PointCloud::Ptr error_cloud (new PointCloud);
       PointCloud::Ptr truss_cloud (new PointCloud);
       PointCloud::Ptr ground_cloud (new PointCloud);
@@ -344,21 +346,30 @@ public:
       my_vis.addPointCloud(ground_cloud, ground_color, "wrong_cloud");
       my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
 
+      my_vis.addCoordinateSystem(0.8, "sensor_origin");
+      auto pos = cloud_in->sensor_origin_;
+      auto ori = cloud_in->sensor_orientation_;
+      
+      Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+      my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
+
       while (!my_vis.wasStopped())
       {
         my_vis.spinOnce(100);
       }
-
-
-      (this->visualize) ?  arvc::visualizeClouds(this->cloud_in,0,0,170, this->cloud_out,0,0,170) : void();
     }
 
+    auto start = std::chrono::high_resolution_clock::now();
     // Compute metrics
     if(this->compute_metrics)
     {
       this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
       this->metricas = arvc::computeMetrics(cm);
     }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    this->metrics_time = duration.count();
+
     return 0;
   }
 };
@@ -484,7 +495,7 @@ int main(int argc, char **argv)
   vector<int> fp_vector{};
   vector<int> fn_vector{};
 
-  bool visualize = true;
+  bool visualize = false;
   bool compute_metrics = true;
 
   int normals_time = 0;
@@ -506,6 +517,7 @@ int main(int argc, char **argv)
       remove_ground rg(entry);
       rg.visualize = visualize;
       rg.compute_metrics = compute_metrics;
+      // rg.run();
       rg.run();
       normals_time += rg.normals_time;
       metrics_time += rg.metrics_time;
@@ -535,8 +547,8 @@ int main(int argc, char **argv)
     // segment_planes rg(entry);
     rg.visualize = visualize;
     rg.compute_metrics = compute_metrics;
-    rg.run();
-    // rg.run2();
+    // rg.run();
+    rg.run2();
     normals_time += rg.normals_time;
     metrics_time += rg.metrics_time;
 

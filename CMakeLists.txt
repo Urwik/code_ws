@@ -109,5 +109,5 @@ target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES})
 add_executable(arvc_ground_segmentation_and_filtering src/pointclouds/segmentation/ground_segmentation_and_filtering.cpp)
 target_link_libraries(arvc_ground_segmentation_and_filtering ${PCL_LIBRARIES})
 
-# add_executable(arvc_main src/main.cpp)
-# target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(arvc_main src/main.cpp)
+target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})
