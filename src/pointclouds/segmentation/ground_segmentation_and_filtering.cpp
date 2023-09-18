@@ -24,10 +24,20 @@ public:
   fs::path path;
   PointCloud::Ptr cloud_in;
   PointCloud::Ptr cloud_out;
-  pcl::IndicesPtr truss_idx;
-  pcl::IndicesPtr ground_idx;
+
+  string fine_mode;
+
   pcl::IndicesPtr gt_truss_idx;
   pcl::IndicesPtr gt_ground_idx;
+
+  pcl::IndicesPtr coarse_truss_indices;
+  pcl::IndicesPtr coarse_ground_indices;
+
+  vector<pcl::PointIndices> regrow_clusters;
+  vector<int>  valid_clusters;
+
+  pcl::IndicesPtr truss_idx;
+  pcl::IndicesPtr ground_idx;
   pcl::IndicesPtr low_density_idx;
   pcl::IndicesPtr wrong_idx;
   pcl::IndicesPtr tp_idx;
@@ -35,8 +45,16 @@ public:
   pcl::IndicesPtr fn_idx;
   pcl::IndicesPtr tn_idx;
 
+  pcl::ModelCoefficientsPtr ground_plane_coefs;
+
   metrics metricas;
   conf_matrix cm;
+  cm_indices cm_idx;
+
+  float ransac_dist_thresh;
+  float truss_width;
+  float module_threshold;
+  float ratio_threshold;
 
   int normals_time;
   int metrics_time;
@@ -47,8 +65,16 @@ public:
   remove_ground(fs::path _path)
   {
     this->path = _path;
+    this->fine_mode = "hybrid";
     this->cloud_in = PointCloud::Ptr (new PointCloud);
     this->cloud_out = PointCloud::Ptr (new PointCloud);
+
+    this->gt_truss_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->gt_ground_idx = pcl::IndicesPtr (new pcl::Indices);
+
+    this->coarse_ground_indices = pcl::IndicesPtr (new pcl::Indices);
+    this->coarse_truss_indices = pcl::IndicesPtr (new pcl::Indices);
+
     this->truss_idx = pcl::IndicesPtr (new pcl::Indices);
     this->ground_idx = pcl::IndicesPtr (new pcl::Indices);
     this->gt_truss_idx = pcl::IndicesPtr (new pcl::Indices);
@@ -60,10 +86,21 @@ public:
     this->fn_idx = pcl::IndicesPtr (new pcl::Indices);
     this->tn_idx = pcl::IndicesPtr (new pcl::Indices);
 
+    this->cm_idx.fn_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->cm_idx.fp_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->cm_idx.tn_idx = pcl::IndicesPtr (new pcl::Indices);
+    this->cm_idx.tp_idx = pcl::IndicesPtr (new pcl::Indices);
+
+    this->ground_plane_coefs = pcl::ModelCoefficientsPtr (new pcl::ModelCoefficients);
+
     this->visualize = false;
     this->compute_metrics = false;
     this->normals_time = 0;
     this->metrics_time = 0;
+    this->ransac_dist_thresh = 0.5f;
+    this->truss_width = 0.2f;
+    this->module_threshold = 1.0f;
+    this->ratio_threshold = 0.3f;
   }
 
   ~remove_ground()
@@ -97,14 +134,152 @@ public:
     
   }  
 
+  void
+  coarse_segmentation()
+  {
+    // This is temporal, only for get the correct biggest plane
+    PointCloud::Ptr tmp_cloud (new PointCloud);
+    tmp_cloud = arvc::voxel_filter(this->cloud_in, 0.05f);
+
+    this->ground_plane_coefs = arvc::compute_planar_ransac(tmp_cloud, true, this->ransac_dist_thresh, 1000);
+    auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, this->ground_plane_coefs, this->ransac_dist_thresh);
+    
+    this->coarse_ground_indices = coarse_indices.first;
+    this->coarse_truss_indices = coarse_indices.second;
+
+  }
+
+  void
+  fine_segmentation()
+  {
+    // FILTER CLUSTERS BY EIGEN VALUES
+    std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, this->coarse_ground_indices, this->visualize);
+    // std::pair<vector<pcl::PointIndices>, int> regrow_output = arvc::regrow_segmentation(this->cloud_in, this->visualize);
+
+    this->regrow_clusters = regrow_output.first;
+    this->normals_time = regrow_output.second;
+
+    if(this->fine_mode == "ratio")
+      valid_clusters = arvc::validate_clusters_by_ratio(this->cloud_in, regrow_clusters, this->ratio_threshold);
+    else if(this->fine_mode == "module")
+      valid_clusters = arvc::validate_clusters_by_module(this->cloud_in, regrow_clusters, this->module_threshold);
+    else if(this->fine_mode == "hybrid")
+      this->valid_clusters = arvc::validate_clusters_hybrid(this->cloud_in, this->regrow_clusters, this->ratio_threshold, this->module_threshold);
+    else
+      cout << "ERROR: Invalid mode for fine segmentation. Available modes are: ratio, module, hybrid" << endl;
+
+    // valid_clusters = arvc::validate_clusters_hybrid_old(this->cloud_in, regrow_clusters, 0.3f, 1000.0f);
+
+    for(int clus_indx : this->valid_clusters)
+      this->coarse_truss_indices->insert(this->coarse_truss_indices->end(), this->regrow_clusters[clus_indx].indices.begin(), this->regrow_clusters[clus_indx].indices.end());
+  
+  }
+
+  void
+  density_filter()
+  {
+    // FILTER CLOUD BY DENISTY
+    this->truss_idx = arvc::radius_outlier_removal(this->cloud_in, this->truss_idx, 0.1f, 5, false);
+    this->ground_idx = arvc::inverseIndices(this->cloud_in, this->truss_idx);
+  }
+
+  int 
+  run3()
+  {
+
+    gt_indices ground_truth_indices;
+    ground_truth_indices.ground = pcl::IndicesPtr (new pcl::Indices);
+    ground_truth_indices.truss = pcl::IndicesPtr (new pcl::Indices);
+    
+    PointCloudI::Ptr cloud_in_intensity (new PointCloudI);
+    cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
+    ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
+    this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
+    
+    // PointCloudL::Ptr cloud_in_label (new PointCloudL);
+    // cloud_in_label = arvc::readCloudWithLabel(this->path);
+    // ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_label);
+    // this->cloud_in = arvc::parseToXYZ(cloud_in_label);
+
+    // Read pointcloud
+    *this->gt_ground_idx = *ground_truth_indices.ground;
+    *this->gt_truss_idx = *ground_truth_indices.truss;
+
+    // Coarse segmentation
+    this->coarse_segmentation();
+
+    // Fine segmentation
+    this->fine_segmentation();
+
+    *this->truss_idx = *coarse_truss_indices;
+    *this->ground_idx = *arvc::inverseIndices(this->cloud_in, this->truss_idx);
+
+    // Density filter
+    this->density_filter();
+
+    // FINAL CLOUD
+    this->cloud_out = arvc::extract_indices(this->cloud_in, this->truss_idx, false);
+
+
+    if(this->visualize){
+      this->getConfMatrixIndexes();
+      PointCloud::Ptr error_cloud (new PointCloud);
+      PointCloud::Ptr truss_cloud (new PointCloud);
+      PointCloud::Ptr ground_cloud (new PointCloud);
+      pcl::IndicesPtr error_idx (new pcl::Indices);
+
+      error_idx->insert(error_idx->end(), this->fp_idx->begin(), this->fp_idx->end());
+      error_idx->insert(error_idx->end(), this->fn_idx->begin(), this->fn_idx->end());
+
+      truss_cloud = arvc::extract_indices(cloud_in, this->tp_idx, false);
+      ground_cloud = arvc::extract_indices(cloud_in,this->tn_idx, false);
+      error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
+
+      pcl::visualization::PCLVisualizer my_vis;
+      my_vis.setBackgroundColor(1,1,1);
+
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 255,0,0);
+
+      my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
+      my_vis.addPointCloud(ground_cloud, ground_color, "wrong_cloud");
+      my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
+
+      my_vis.addCoordinateSystem(0.8, "sensor_origin");
+      auto pos = cloud_in->sensor_origin_;
+      auto ori = cloud_in->sensor_orientation_;
+      
+      Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+      my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
+
+      while (!my_vis.wasStopped())
+      {
+        my_vis.spinOnce(100);
+      }
+    }
+
+    
+    // Compute metrics
+    auto start = std::chrono::high_resolution_clock::now();
+    if(this->compute_metrics)
+    {
+      this->cm_idx = arvc::compute_cm_indices(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::compute_metrics(this->cm_idx);
+    }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    this->metrics_time = duration.count();
+
+    return 0;
+  }
+
   int
   run()
   {
     PointCloudI::Ptr cloud_in_intensity (new PointCloudI);
-    PointCloud::Ptr cloud_in_xyz (new PointCloud);
-    PointCloud::Ptr cloud_out_xyz (new PointCloud);
+    PointCloudL::Ptr cloud_in_label (new PointCloudL);
     PointCloud::Ptr tmp_cloud (new PointCloud);
-    PointCloud::Ptr uncluster_cloud (new PointCloud);
 
     pcl::IndicesPtr coarse_ground_indices (new pcl::Indices);
     pcl::IndicesPtr coarse_truss_indices (new pcl::Indices);
@@ -118,11 +293,16 @@ public:
     vector<int> valid_clusters;
 
     // Read pointcloud
-    cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
-    ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
+    // cloud_in_intensity = arvc::readCloudWithIntensity(this->path);
+    // ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_intensity);
+    // this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
+
+    cloud_in_label = arvc::readCloudWithLabel(this->path);
+    ground_truth_indices = arvc::getGroundTruthIndices(cloud_in_label);
+    this->cloud_in = arvc::parseToXYZ(cloud_in_label);
+
     *this->gt_ground_idx = *ground_truth_indices.ground;
     *this->gt_truss_idx = *ground_truth_indices.truss;
-    this->cloud_in = arvc::parseToXYZ(cloud_in_intensity);
 
     // ***********************************************************************//
     // COARSE SEGMENTATITION
@@ -130,18 +310,18 @@ public:
     // This is temporal, only for get the correct biggest plane
     tmp_cloud = arvc::voxel_filter(this->cloud_in, 0.05f);
 
-    tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true, 0.5f, 1000);
-    auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, tmp_plane_coefss, 0.5f);
+    tmp_plane_coefss = arvc::compute_planar_ransac(tmp_cloud, true, this->ransac_dist_thresh, 1000);
+    auto coarse_indices = arvc::get_points_near_plane(this->cloud_in, tmp_plane_coefss, this->ransac_dist_thresh);
     coarse_ground_indices = coarse_indices.first;
     coarse_truss_indices = coarse_indices.second;
     
 
+    PointCloud::Ptr coarse_ground_cloud (new PointCloud);
+    PointCloud::Ptr coarse_truss_cloud (new PointCloud);
 
     // CHECK CLOUDS
     if(this->visualize)
     {
-      PointCloud::Ptr coarse_ground_cloud (new PointCloud);
-      PointCloud::Ptr coarse_truss_cloud (new PointCloud);
 
       coarse_ground_cloud = arvc::extract_indices(this->cloud_in, coarse_ground_indices, false);
       coarse_truss_cloud = arvc::extract_indices(this->cloud_in, coarse_truss_indices, false);
@@ -221,13 +401,16 @@ public:
         my_vis.spinOnce(100);
       }
     }
-
-    auto start = std::chrono::high_resolution_clock::now();
+    
     // Compute metrics
+    auto start = std::chrono::high_resolution_clock::now();
     if(this->compute_metrics)
     {
-      this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
-      this->metricas = arvc::computeMetrics(cm);
+      // this->cm_idx = arvc::compute_cm_indices(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      // this->metricas = arvc::compute_metrics(this->cm_idx);
+      this->cm = arvc::compute_conf_matrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::compute_metrics(this->cm);
+
     }
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -363,8 +546,8 @@ public:
     // Compute metrics
     if(this->compute_metrics)
     {
-      this->cm = arvc::computeConfusionMatrix(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
-      this->metricas = arvc::computeMetrics(cm);
+      this->cm_idx = arvc::compute_cm_indices(this->gt_truss_idx, this->gt_ground_idx, this->truss_idx, this->ground_idx);
+      this->metricas = arvc::compute_metrics(this->cm_idx);
     }
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -483,6 +666,22 @@ public:
 
 int main(int argc, char **argv)
 {
+  
+  bool visualize = false;
+  bool compute_metrics = true;
+  float truss_width = 0.2f;
+  float ransac_height = 0.5f;
+
+  float module_threshold = 0.65f;
+  float ratio_threshold = (truss_width / ransac_height);
+
+  // WO COARSE SEG
+  // float module_threshold = 1.8f;
+  // float ratio_threshold = (truss_width / module_threshold);
+
+  string fine_mode = "hybrid";
+  
+  
   std::cout << YELLOW << "Running your code..." << RESET << std::endl;
   auto start = std::chrono::high_resolution_clock::now();
 
@@ -515,10 +714,13 @@ int main(int argc, char **argv)
     for(const fs::path &entry : tq::tqdm(path_vector))
     {
       remove_ground rg(entry);
+      rg.fine_mode = fine_mode;
       rg.visualize = visualize;
       rg.compute_metrics = compute_metrics;
       // rg.run();
       rg.run();
+      // rg.run3();
+
       normals_time += rg.normals_time;
       metrics_time += rg.metrics_time;
 
@@ -528,6 +730,12 @@ int main(int argc, char **argv)
         precision.push_back(rg.metricas.precision);
         recall.push_back(rg.metricas.recall);
         f1_score.push_back(rg.metricas.f1_score);
+        
+        // tp_vector.push_back(rg.cm_idx.tp_idx->size());
+        // tn_vector.push_back(rg.cm_idx.tn_idx->size());
+        // fp_vector.push_back(rg.cm_idx.fp_idx->size());
+        // fn_vector.push_back(rg.cm_idx.fn_idx->size());
+        
         tp_vector.push_back(rg.cm.TP);
         tn_vector.push_back(rg.cm.TN);
         fp_vector.push_back(rg.cm.FP);
@@ -543,8 +751,7 @@ int main(int argc, char **argv)
     // Get the input data
     fs::path entry = argv[1];
     remove_ground rg(entry);
-  
-    // segment_planes rg(entry);
+    rg.fine_mode = fine_mode;
     rg.visualize = visualize;
     rg.compute_metrics = compute_metrics;
     // rg.run();
@@ -557,10 +764,17 @@ int main(int argc, char **argv)
       precision.push_back(rg.metricas.precision);
       recall.push_back(rg.metricas.recall);
       f1_score.push_back(rg.metricas.f1_score);
+      // tp_vector.push_back(rg.cm_idx.tp_idx->size());
+      // tn_vector.push_back(rg.cm_idx.tn_idx->size());
+      // fp_vector.push_back(rg.cm_idx.fp_idx->size());
+      // fn_vector.push_back(rg.cm_idx.fn_idx->size());
+      
       tp_vector.push_back(rg.cm.TP);
       tn_vector.push_back(rg.cm.TN);
       fp_vector.push_back(rg.cm.FP);
       fn_vector.push_back(rg.cm.FN);
+
+
     }
 
 
@@ -582,10 +796,13 @@ int main(int argc, char **argv)
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
   std::cout << YELLOW << "Code end!!" << RESET << std::endl;
-  std::cout << "Num of files: " << path_vector.size() << std::endl;
-  std::cout << "Total Computation Time: " << duration.count() << " ms" << std::endl;
-  std::cout << "Computation time without normal estimation: " << duration.count() - normals_time << " ms" << std::endl;
+  cout << "Ratio Threshold: " << ratio_threshold << endl;
+  cout << "Module Threshold: " << module_threshold << endl;
+  cout << "Num of files: " << path_vector.size() << endl;
+  cout << "Total Computation Time: " << duration.count() << " ms" << endl;
   cout << "Average Computation Time: " << duration.count()/path_vector.size() << " ms" << endl;
+  cout << "Normal estimation time: " << normals_time << " ms" << endl;
+  cout << "Metrics computation time: " << metrics_time << " ms" << endl;
   cout << "Average Computation Time Without normal estimation and metrics: " << (duration.count()-normals_time-metrics_time)/path_vector.size() << " ms" << endl;
 
   return 0;
