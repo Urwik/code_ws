@@ -8,11 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 # find_package(catkin REQUIRED rosbag sensor_msgs std_msgs roscpp)
 find_package(PCL 1.3 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(gazebo REQUIRED)
 
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS})
-link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS})
-add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS})
+link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS})
+add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS} ${GAZEBO_DEFINITIONS})
 
 # BAGFILES ....................................................................#
 add_executable(arvc_remove_dot_from_extracted_bag_filenames src/bagfiles/remove_dot_from_extracted_bag_filenames.cpp)
@@ -111,3 +112,6 @@ target_link_libraries(arvc_ground_segmentation_and_filtering ${PCL_LIBRARIES})
 
 add_executable(arvc_main src/main.cpp)
 target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(arvc_truss_plane_detector src/truss_plane_detector.cpp)
+target_link_libraries(arvc_truss_plane_detector ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${GAZEBO_LIBRARIES})

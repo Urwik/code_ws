@@ -943,7 +943,7 @@ namespace arvc
    * @return pcl::PointCloud<pcl::PointXYZ>::Ptr
    */
   metrics
-  compute_metrics(conf_matrix _cm)
+  compute_metrics(conf_matrix cm)
   {
     metrics _metrics;
 
