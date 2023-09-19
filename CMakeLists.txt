@@ -114,4 +114,4 @@ add_executable(arvc_main src/main.cpp)
 target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(arvc_truss_plane_detector src/truss_plane_detector.cpp)
-target_link_libraries(arvc_truss_plane_detector ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${GAZEBO_LIBRARIES})
+target_link_libraries(arvc_truss_plane_detector ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${GAZEBO_LIBRARIES} ${Eigen3_LIBRARIES})

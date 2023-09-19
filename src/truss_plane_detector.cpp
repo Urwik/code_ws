@@ -1,4 +1,4 @@
-// #include "pointclouds/arvc_utils.cpp"
+#include <pcl/common/common.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include "arvc_utils.hpp"
@@ -9,50 +9,120 @@
 
 
 namespace im = ignition::math;
+namespace eig = Eigen;
+
+
 
 class truss_plane_detector
 {
 
-private:
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz;
-    im::Matrix4d QSensorToTruss;
-
 public:
     truss_plane_detector();
+    truss_plane_detector(double range_dist, im::Pose3d QSensorToTruss);
     ~truss_plane_detector();
 
     void read_cloud();
     void detect_plane();
+    void get_close_points();
+
+    Eigen::Vector4f min_pt;
+    Eigen::Vector4f max_pt;
+    im::Pose3d QSensorToTruss;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_xyz;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_search_xyz;
+    arvc::plane plane;
 };
 
 truss_plane_detector::truss_plane_detector()
 {
-    this->cloud_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    this->QSensorToTruss = im::Matrix4d::Zero;
+    this->cloud_in_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    this->cloud_search_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    this->QSensorToTruss = im::Pose3d::Zero;
+    this->min_pt = Eigen::Vector4f::Zero();
+    this->max_pt = Eigen::Vector4f::Zero();
+    this->plane = arvc::plane();
 }
+
+truss_plane_detector::truss_plane_detector(double range_dist, im::Pose3d QSensorToTruss)
+{
+    this->cloud_in_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    this->cloud_search_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    this->QSensorToTruss = QSensorToTruss;
+    this->min_pt << -range_dist, -range_dist, -range_dist, 1.0;
+    this->max_pt << range_dist, range_dist, range_dist, 1.0;
+    this->plane = arvc::plane();
+}
+
 
 truss_plane_detector::~truss_plane_detector()
 {
-    this->cloud_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    this->QSensorToTruss = im::Matrix4d::Zero;
+    this->cloud_in_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    this->cloud_search_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    this->QSensorToTruss = im::Pose3d::Zero;
+    this->min_pt = Eigen::Vector4f::Zero();
+    this->max_pt = Eigen::Vector4f::Zero();
+    this->plane = arvc::plane();
 }
+
 
 void truss_plane_detector::detect_plane(){
     
-    pcl::ModelCoefficientsPtr coefficients(new pcl::ModelCoefficients);
-    bool optimize_coefficients = true;
-    double distance_threshold = 0.01;
-    int max_iterations = 1000;
+    pcl::PointIndicesPtr point_indices (new pcl::PointIndices);
+    pcl::SACSegmentation<PointT> ransac;
+    pcl::ModelCoefficientsPtr plane_coeffs (new pcl::ModelCoefficients);
 
-    coefficients = arvc::compute_planar_ransac( this->cloud_xyz,
-                                                optimize_coefficients,
-                                                distance_threshold,
-                                                max_iterations);
+    ransac.setInputCloud(this->cloud_search_xyz);
+    ransac.setOptimizeCoefficients(true);
+    ransac.setModelType(pcl::SACMODEL_PLANE);
+    ransac.setMethodType(pcl::SAC_RANSAC);
+    ransac.setMaxIterations(1000);
+    ransac.setDistanceThreshold(0.1);
+    ransac.segment(*point_indices, *plane_coeffs);
+
+    this->plane = arvc::plane(plane_coeffs, point_indices);
+
+    cout << "DETECTED PLANE COEFFS: " << *this->plane.coeffs << endl;
+    cout << "DETECTED PLANE INLIERS: " << this->plane.inliers->indices.size() << endl;
+    cout << "------------------------" << endl;
 
 }
 
+
+void truss_plane_detector::get_close_points(){
+    
+    pcl::IndicesPtr indices(new pcl::Indices);
+
+    pcl::getPointsInBox(*this->cloud_in_xyz, this->min_pt, this->max_pt, *indices);
+    
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    
+    extract.setInputCloud(this->cloud_in_xyz);
+    extract.setIndices(indices);
+    extract.setNegative(false);
+    extract.filter(*this->cloud_search_xyz);
+
+    cout << "CLOUD SEARCH SIZE: " << this->cloud_search_xyz->points.size() << endl;
+}
+
+
 int main(int argc, char const *argv[])
 {
-    /* code */
+    im::Pose3d TrussSensorPose;
+    TrussSensorPose.Pos().Set(0.0, 0.0, 0.0);
+    TrussSensorPose.Rot().Euler(im::Vector3d(0.0, 0.0, 0.0));
+
+    double range_dist = 1;
+
+    truss_plane_detector td(range_dist, TrussSensorPose);
+
+    td.cloud_in_xyz = arvc::readCloud("/media/arvc/data/datasets/ARVCTRUSS/valid/ply_xyzlabelnormal/00000.ply");
+    td.cloud_in_xyz = arvc::remove_origin_points(td.cloud_in_xyz);
+    td.get_close_points();
+    td.detect_plane();
+
+    PointCloud::Ptr plane_cloud = td.plane.getCloud(td.cloud_search_xyz);
+
+    arvc::visualizeClouds(td.cloud_search_xyz, plane_cloud);
+
     return 0;
 }

@@ -1074,6 +1074,8 @@ namespace arvc
     vis.removeAllPointClouds();
 
     vis.addCoordinateSystem(0.50, "global", v1);
+    vis.addCoordinateSystem(0.50, "global2", v2);
+
     Eigen::Vector3f position(0.0, 0.0, 0.0);
 
     vis.addCube(position, original_cloud->sensor_orientation_, 0.085, 0.085, 0.073, "cube", v1);
@@ -1272,5 +1274,75 @@ namespace arvc
 
     return scaledCloud;
   }
+
+  PointCloud::Ptr
+  remove_origin_points(PointCloud::Ptr &_cloud_in)
+  {
+    PointCloud::Ptr _cloud_out (new PointCloud);
+    pcl::PointIndicesPtr indices(new pcl::PointIndices);
+    Eigen::Vector4f min_pt( -0.01, -0.01, -0.01, 1.0);
+    Eigen::Vector4f max_pt( 0.01, 0.01, 0.01, 1.0);
+
+    pcl::getPointsInBox(*_cloud_in, min_pt, max_pt, indices->indices);
+    
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    
+    extract.setInputCloud(_cloud_in);
+    extract.setIndices(indices);
+    extract.setNegative(true);
+    extract.filter(*_cloud_out);
+
+    cout << "REMOVED POINTS: " << indices->indices.size() << endl;
+
+    return _cloud_out;
+  }
+  
+
+  class plane
+  {
+    public:
+
+      plane(){
+        this->coeffs.reset(new pcl::ModelCoefficients);
+        this->inliers.reset(new pcl::PointIndices);
+
+        this->coeffs->values = {0,0,0,0};
+        this->inliers->indices = {0};
+      };
+
+      plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
+      {
+        this->coeffs.reset(new pcl::ModelCoefficients);
+        this->inliers.reset(new pcl::PointIndices);
+
+        *this->coeffs = *_coeffs;
+        *this->inliers = *_indices;
+        
+        cout << "PLANE OBJ INLIERS SIZE: " << this->inliers->indices.size() << endl;
+        cout << "PLANE OBJ COEFFS: " << *this->coeffs << endl;
+        cout << "-----------------------------" << endl;
+      };
+
+      ~plane(){
+        this->coeffs->values = {0,0,0,0};
+        this->inliers->indices = {0};
+      };
+
+      PointCloud::Ptr getCloud(PointCloud::Ptr &_cloud_in){
+        pcl::ExtractIndices<PointT> extract;
+        PointCloud::Ptr _cloud_out (new PointCloud);
+        
+        extract.setInputCloud(_cloud_in);
+        extract.setIndices(this->inliers);
+        extract.setNegative(false);
+        extract.filter(*_cloud_out);
+
+        return _cloud_out;
+      };
+
+      pcl::ModelCoefficientsPtr coeffs;
+      pcl::PointIndicesPtr inliers;
+
+  };
 
 }
