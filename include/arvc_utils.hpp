@@ -1292,8 +1292,6 @@ namespace arvc
     extract.setNegative(true);
     extract.filter(*_cloud_out);
 
-    cout << "REMOVED POINTS: " << indices->indices.size() << endl;
-
     return _cloud_out;
   }
   
@@ -1308,9 +1306,11 @@ namespace arvc
 
         this->coeffs->values = {0,0,0,0};
         this->inliers->indices = {0};
+
+        cout << "CONSTRUCTOR POR DEFECTO DEL PLANO" << endl;
       };
 
-      plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
+/*       plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
       {
         this->coeffs.reset(new pcl::ModelCoefficients);
         this->inliers.reset(new pcl::PointIndices);
@@ -1321,7 +1321,7 @@ namespace arvc
         cout << "PLANE OBJ INLIERS SIZE: " << this->inliers->indices.size() << endl;
         cout << "PLANE OBJ COEFFS: " << *this->coeffs << endl;
         cout << "-----------------------------" << endl;
-      };
+      }; */
 
       ~plane(){
         this->coeffs->values = {0,0,0,0};
