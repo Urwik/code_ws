@@ -1295,6 +1295,19 @@ namespace arvc
     return _cloud_out;
   }
   
+  void
+  remove_indices_from_cloud(PointCloud::Ptr &_cloud_in, pcl::PointIndicesPtr &_indices)
+  {
+    PointCloud::Ptr _cloud_out (new PointCloud);
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    
+    extract.setInputCloud(_cloud_in);
+    extract.setIndices(_indices);
+    extract.setNegative(true);
+    extract.filter(*_cloud_in);
+
+    // return _cloud_out;
+  }
 
   class plane
   {
@@ -1306,8 +1319,6 @@ namespace arvc
 
         this->coeffs->values = {0,0,0,0};
         this->inliers->indices = {0};
-
-        cout << "CONSTRUCTOR POR DEFECTO DEL PLANO" << endl;
       };
 
 /*       plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
@@ -1342,6 +1353,8 @@ namespace arvc
 
       pcl::ModelCoefficientsPtr coeffs;
       pcl::PointIndicesPtr inliers;
+      Eigen::Vector3f normal;
+
 
   };
 
