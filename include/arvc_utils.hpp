@@ -1298,15 +1298,12 @@ namespace arvc
   void
   remove_indices_from_cloud(PointCloud::Ptr &_cloud_in, pcl::PointIndicesPtr &_indices)
   {
-    PointCloud::Ptr _cloud_out (new PointCloud);
     pcl::ExtractIndices<pcl::PointXYZ> extract;
     
     extract.setInputCloud(_cloud_in);
     extract.setIndices(_indices);
     extract.setNegative(true);
     extract.filter(*_cloud_in);
-
-    // return _cloud_out;
   }
 
   class plane
@@ -1316,9 +1313,12 @@ namespace arvc
       plane(){
         this->coeffs.reset(new pcl::ModelCoefficients);
         this->inliers.reset(new pcl::PointIndices);
+        this->cloud.reset(new PointCloud);
+        this->original_cloud.reset(new PointCloud);
 
         this->coeffs->values = {0,0,0,0};
         this->inliers->indices = {0};
+        this->normal = Eigen::Vector3f(0,0,0);
       };
 
 /*       plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
@@ -1339,21 +1339,37 @@ namespace arvc
         this->inliers->indices = {0};
       };
 
-      PointCloud::Ptr getCloud(PointCloud::Ptr &_cloud_in){
+
+      void setPlane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices, PointCloud::Ptr _cloud_in){
+        *this->coeffs = *_coeffs;
+        *this->inliers = *_indices;
+        *this->original_cloud = *_cloud_in;
+        this->getNormal();
+        this->getCloud();
+      };
+
+      PointCloud::Ptr getCloud(){
         pcl::ExtractIndices<PointT> extract;
-        PointCloud::Ptr _cloud_out (new PointCloud);
         
-        extract.setInputCloud(_cloud_in);
+        extract.setInputCloud(this->original_cloud);
         extract.setIndices(this->inliers);
         extract.setNegative(false);
-        extract.filter(*_cloud_out);
+        extract.filter(*this->cloud);
 
-        return _cloud_out;
+        return this->cloud;
       };
+      
+      Eigen::Vector3f getNormal(){
+        this->normal = Eigen::Vector3f(this->coeffs->values[0], this->coeffs->values[1], this->coeffs->values[2]);
+        return normal;
+      }
+
 
       pcl::ModelCoefficientsPtr coeffs;
       pcl::PointIndicesPtr inliers;
       Eigen::Vector3f normal;
+      PointCloud::Ptr cloud;
+      PointCloud::Ptr original_cloud;
 
 
   };
