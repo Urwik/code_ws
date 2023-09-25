@@ -13,6 +13,12 @@ namespace im = ignition::math;
 
 class truss_plane_detector
 {
+    struct direction
+    {
+        int index;
+        arvc::color color;
+    };
+    
 
 public:
 
@@ -30,6 +36,7 @@ public:
         this->v2=(1);
         this->viewer->createViewPort(0.0, 0.0, 0.5, 1.0, this->v1);
         this->viewer->createViewPort(0.5, 0.0, 1.0, 1.0, this->v2);
+        this->search_directions.resize(3);
     }
 
     // CONSTRUCTOR
@@ -46,6 +53,7 @@ public:
         this->v2=(1);
         this->viewer->createViewPort(0.0, 0.0, 0.5, 1.0, this->v1);
         this->viewer->createViewPort(0.5, 0.0, 1.0, 1.0, this->v2);
+        this->search_directions.resize(3);
     }
 
     // DESTRUCTOR
@@ -77,18 +85,10 @@ public:
             cout << "Plane_" << this->counter << " found" << endl;
             this->initial_plane.setPlane(plane_coeffs, point_indices, this->cloud_search_xyz);
             
-            // this->add_indices_to_view(this->initial_plane.inliers, this->cloud_search_xyz);
-            // this->add_plane_to_view(this->initial_plane);
             arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
             
             this->counter++;
         }
-
-        // SAVE RESULT AS A PLANE OBJECT 
-        // *this->initial_plane.coeffs = *plane_coeffs;
-        // *this->initial_plane.inliers = *point_indices;
-
-
     }
 
 
@@ -129,7 +129,7 @@ public:
     }
 
 
-    arvc::plane detect_perpendicular_plane(const Eigen::Vector3f& direction){
+    arvc::plane detect_perpendicular_plane(const arvc::direction& direction){
         
         pcl::SACSegmentation<PointT> ransac;
         arvc::plane plane;
@@ -142,15 +142,15 @@ public:
         ransac.setMethodType(pcl::SAC_RANSAC);
         ransac.setMaxIterations(10000);
         ransac.setDistanceThreshold(0.02);
-        ransac.setAxis(direction);
+        ransac.setAxis(direction.vector);
         ransac.setEpsAngle (pcl::deg2rad (5.0));
         ransac.segment(*plane.inliers, *plane.coeffs);
 
-        if (plane.inliers->indices.size() > 500)
+        if (plane.inliers->indices.size() > 300)
         {
             cout << "Plane_" << this->counter << " found" << endl;
             plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
-            this->add_indices_to_view(plane.inliers, this->cloud_in_xyz); 
+            this->add_indices_to_view(plane.inliers, this->cloud_in_xyz, direction.color); 
             // this->add_plane_to_view(plane);
             arvc::remove_indices_from_cloud(this->cloud_in_xyz, plane.inliers);
 
@@ -168,7 +168,6 @@ public:
 
         return plane;
     }
-
 
 
     void get_close_points(){
@@ -198,6 +197,22 @@ public:
 
     void compute_third_direction(){
         this->third_direction = this->basis.cross(this->second_direction);
+    }
+
+
+    void get_search_directions(){
+        arvc::direction direction;
+        direction.vector = this->second_direction;
+        direction.color = arvc::color(255,0,0);
+        this->search_directions[0] = direction;
+
+        direction.vector = this->third_direction;
+        direction.color = arvc::color(0,255,0);
+        this->search_directions[1] = direction;
+
+        direction.vector = this->basis;
+        direction.color = arvc::color(0,0,255);
+        this->search_directions[2] = direction;
     }
 
 
@@ -294,7 +309,7 @@ public:
     }
 
 
-    void add_indices_to_view(pcl::PointIndicesPtr& indices, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_origin){
+    void add_indices_to_view(pcl::PointIndicesPtr& indices, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_origin, arvc::color color){
         
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::copyPointCloud(*cloud_origin, *indices, *cloud);
@@ -304,8 +319,8 @@ public:
 
         cout << "Adding " << this->ss.str() << " to the viewer with " << cloud->points.size() << " points" << endl;
 
-        pcl::RGB color;
-        color = arvc::get_random_color(256, 0);
+        // pcl::RGB color;
+        // color = arvc::get_random_color(256, 0);
 
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, (int) color.r, (int) color.g, (int) color.b);
         this->viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, this->ss.str(), this->v2);
@@ -326,19 +341,36 @@ public:
     void draw_search_directions()
     {
         pcl::PointXYZ origin(0,0,0);
-        this->second_direction = 50*this->second_direction;
 
         pcl::PointXYZ x_vector(this->second_direction[0], this->second_direction[1], this->second_direction[2]);
         pcl::PointXYZ y_vector(this->third_direction[0], this->third_direction[1], this->third_direction[2]);
         pcl::PointXYZ z_vector(this->basis[0], this->basis[1], this->basis[2]);
 
         viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(x_vector, origin, 1.0, 0.0, 0.0, false, "x_direction", this->v2);
-        // viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(y_vector, origin, 0.0, 1.0, 0.0, false, "y_direction", this->v2);
-        // viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(z_vector, origin, 0.0, 0.0, 1.0, false, "z_direction", this->v2);
+        viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(y_vector, origin, 0.0, 1.0, 0.0, false, "y_direction", this->v2);
+        viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(z_vector, origin, 0.0, 0.0, 1.0, false, "z_direction", this->v2);
 
     }
     
+    void add_plane_eigenvectors(const arvc::plane& _plane)
+    {
+        arvc::axes3d axis3D = arvc::compute_eigenvectors3D(_plane.cloud);
+        cout << "Eigenvectors: " << endl;
+        cout << axis3D << endl;
+        pcl::PointXYZ centroid;
+        pcl::computeCentroid(*_plane.cloud, centroid);
+        this->viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(axis3D.getPoint(axis3D.x, centroid.getVector4fMap()), centroid, 1.0, 0.0, 0.0, false, "eigenvector_1", this->v2);
+        this->viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(axis3D.getPoint(axis3D.y, centroid.getVector4fMap()), centroid, 0.0, 1.0, 0.0, false, "eigenvector_2", this->v2);
+        this->viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(axis3D.getPoint(axis3D.z, centroid.getVector4fMap()), centroid, 0.0, 0.0, 1.0, false, "eigenvector_3", this->v2);
+        
+    }
+
+    private:
+        pcl::visualization::PCLVisualizer::Ptr viewer;
+        int v1;
+        int v2;
     
+    public:
     // PUBLIC ATTRIBUTES
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_xyz;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_search_xyz;
@@ -355,17 +387,14 @@ public:
     Eigen::Vector3f normal;
     int counter = 0;
     stringstream ss;
-
-    private:
-        pcl::visualization::PCLVisualizer::Ptr viewer;
-        int v1;
-        int v2;
+    vector<arvc::direction> search_directions;
 
 };
 
 
 int main(int argc, char const *argv[])
 {
+    std::cout << setprecision(3) << std::fixed;
     const double RANGE_DIST = 1;
 
     truss_plane_detector td(RANGE_DIST);
@@ -373,43 +402,44 @@ int main(int argc, char const *argv[])
     td.RobotBaseToSensorTF.translation() = Eigen::Vector3f(0.1, 0.0, 0.3);
     td.RobotBaseToSensorTF.linear() = Eigen::Quaternionf::Identity().toRotationMatrix();
 
-    
-
     // td.cloud_in_xyz = arvc::readCloud("/home/fran/datasets/test_visualization/pcd/00000.pcd");
-    td.cloud_in_xyz = arvc::readCloud("/media/arvc/data/datasets/ARVCTRUSS/valid/ply_xyzlabelnormal/00000.ply");
+    td.cloud_in_xyz = arvc::readCloud("/home/arvc/arvc_saved_cloud.pcd");
+
     td.cloud_in_xyz = arvc::remove_origin_points(td.cloud_in_xyz);
+    td.cloud_in_xyz = arvc::voxel_filter(td.cloud_in_xyz, 0.05);
+
     td.get_close_points();
     pcl::transformPointCloud(*td.cloud_search_xyz, *td.cloud_search_xyz, td.RobotBaseToSensorTF);
     pcl::transformPointCloud(*td.cloud_in_xyz, *td.cloud_in_xyz, td.RobotBaseToSensorTF);
 
     td.detect_initial_plane();
-    td.tf_base_to_sensor(td.initial_plane.normal);
-    td.compute_third_direction();
+    td.add_indices_to_view(td.initial_plane.inliers, td.cloud_search_xyz, arvc::color(255,0,0));
+    td.add_plane_eigenvectors(td.initial_plane);
 
-    int count = 1;
-    int cloud_initial_size = td.cloud_in_xyz->points.size();
-    int detected_plane_size = 1000;
+    // td.tf_base_to_sensor(td.initial_plane.normal);
+    // td.compute_third_direction();
+    // td.get_search_directions();
 
-    auto search_direction = td.second_direction;
-    
-    // pcl::visualization::PCLVisualizer my_vis("visualizador");
+    // int count = 1;
+    // int cloud_initial_size = td.cloud_in_xyz->points.size();
+    // int detected_plane_size = 1000;
 
-    do
+/*     for (const arvc::direction& search_direction : td.search_directions)
     {
-        cout << YELLOW << "\n- ITERACIÓN: " << count << " -------------------------------" << RESET << endl;
+        cout << RED << "Search direction: " << search_direction.vector.transpose() << RESET << endl;
 
-        arvc::plane detected_plane = td.detect_perpendicular_plane(-search_direction);
-        detected_plane_size = detected_plane.inliers->indices.size();  
-        
-        // my_vis.addPointCloud(td.cloud_in_xyz, "cloud");
-        // my_vis.addCoordinateSystem(0.5, "origin");
-        // while (my_vis.wasStopped() == false){
-        //     my_vis.spinOnce(100);
-        // }
+        do
+        {
+            cout << YELLOW << "\n- ITERACIÓN: " << count << " -------------------------------" << RESET << endl;
 
-        count++;
-    } while (detected_plane_size > 100 && td.cloud_in_xyz->points.size() > cloud_initial_size * 0.1);
-    // } while (count < 10);
+            arvc::plane detected_plane = td.detect_perpendicular_plane(search_direction);
+            arvc::axes3d axis3D = arvc::compute_eigenvectors3D(detected_plane.cloud);
+            detected_plane_size = detected_plane.inliers->indices.size();  
+            
+            count++;
+        } while (detected_plane_size > 300 && td.cloud_in_xyz->points.size() > cloud_initial_size * 0.1);
+    }
+     */
 
 
     

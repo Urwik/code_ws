@@ -1175,16 +1175,6 @@ namespace arvc
   }
 
 
-  void
-  addLinetoViewer()
-  {
-  //   pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-  //   viewer->addLine (center, x_axis, 1.0f, 0.0f, 0.0f, "major eigen vector");
-  //   viewer->addLine (center, y_axis, 0.0f, 1.0f, 0.0f, "middle eigen vector");
-  //   viewer->addLine (center, z_axis, 0.0f, 0.0f, 1.0f, "minor eigen vector");
-  }
-
-
   /**
    * @brief Returns the indices of the points that are inside the given radius
    * 
@@ -1319,6 +1309,63 @@ namespace arvc
     return color;
   }
 
+
+  class axes3d
+  {
+  private:
+    /* data */
+  public:
+    axes3d(/* args */){}
+    ~axes3d(){}
+
+    pcl::PointXYZ getPoint(Eigen::Vector3f _vector, Eigen::Vector4f _centroid){
+      pcl::PointXYZ point;
+      point.x = _vector(0) + _centroid(0);
+      point.y = _vector(1) + _centroid(1);
+      point.z = _vector(2) + _centroid(2);
+
+      return point;
+    }
+
+    // operator << overloat to cout values
+    friend std::ostream& operator<<(std::ostream& os, const arvc::axes3d& a)
+    {
+      // set precision for floating point output
+
+      os << "X: [ " << a.x.x() << ", " << a.x.y() << ", " << a.z.z() << " ]" << endl;
+      os << "Y: [ " << a.y.x() << ", " << a.y.y() << ", " << a.z.z() << " ]" << endl;
+      os << "Z: [ " << a.z.x() << ", " << a.z.y() << ", " << a.z.z() << " ]" << endl;
+
+      return os;
+    }
+
+
+    Eigen::Vector3f x;
+    Eigen::Vector3f y;
+    Eigen::Vector3f z;
+  };
+
+
+  axes3d compute_eigenvectors3D(const PointCloud::Ptr& _cloud_in){
+    axes3d _axes;
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*_cloud_in, centroid);
+    Eigen::Matrix3f covariance;
+    pcl::computeCovarianceMatrixNormalized(*_cloud_in, centroid, covariance);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
+    Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
+    
+    // Forzar a que el tercer vector sea perpendicular a los anteriores.
+    // eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
+    
+    _axes.x = eigDx.col(0);
+    _axes.y = eigDx.col(1);
+    _axes.z = eigDx.col(2);
+
+    return _axes;
+  }
+
+
   class color
   {
     public:
@@ -1355,6 +1402,21 @@ namespace arvc
       int g;
       int b;
   };
+
+
+  class direction
+
+  {
+  private:
+    /* data */
+  public:
+    direction(/* args */){}
+
+    ~direction(){}    Eigen::Vector3f vector;
+
+    arvc::color color;
+  };
+
 
   class plane
   {
