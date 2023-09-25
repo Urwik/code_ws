@@ -1306,6 +1306,56 @@ namespace arvc
     extract.filter(*_cloud_in);
   }
 
+  pcl::RGB
+  get_random_color(int max = 255, int min = 0)
+  {
+    pcl::RGB color;
+    color.r = (int) min + (rand() % max);
+    color.g = (int) min + (rand() % max);
+    color.b = (int) min + (rand() % max);
+
+    // cout << "Color: [ " << (int) color.r << ", " <<(int) color.g << ", " << (int) color.b << " ]" << endl;
+
+    return color;
+  }
+
+  class color
+  {
+    public:
+      color(int _r, int _g, int _b){
+        this->r = _r;
+        this->g = _g;
+        this->b = _b;
+      }
+
+      color(int min = 0, int max = 255){
+        this->random(min, max);
+      }
+
+
+      friend std::ostream& operator<<(std::ostream& os, const arvc::color& c)
+      {
+        os << "Color: [ " << c.r << ", " << c.g << ", " << c.b << " ]" << endl;
+        return os;
+      }
+
+      void random(int min = 0, int max = 255){
+        this->r = (int) min + (rand() % max);
+        this->g = (int) min + (rand() % max);
+        this->b = (int) min + (rand() % max);
+      }
+
+      void normalized(){
+        this->r = (int) this->r / 255;
+        this->g = (int) this->g / 255;
+        this->b = (int) this->b / 255;
+      }
+
+      int r;
+      int g;
+      int b;
+  };
+
   class plane
   {
     public:
@@ -1339,6 +1389,13 @@ namespace arvc
         this->inliers->indices = {0};
       };
 
+      friend std::ostream& operator<<(std::ostream& os, const arvc::plane& p)
+      {
+        os << "Plane parameters: [ " << p.coeffs->values[0] << ", " << p.coeffs->values[1] << ", " << p.coeffs->values[2] << ", " << p.coeffs->values[3] << " ]" << endl;
+        os << "Plane inliers: " << p.inliers->indices.size() << endl;
+
+        return os;
+      }
 
       void setPlane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices, PointCloud::Ptr _cloud_in){
         *this->coeffs = *_coeffs;
@@ -1346,6 +1403,7 @@ namespace arvc
         *this->original_cloud = *_cloud_in;
         this->getNormal();
         this->getCloud();
+        this->color.random();
       };
 
       PointCloud::Ptr getCloud(){
@@ -1370,6 +1428,7 @@ namespace arvc
       Eigen::Vector3f normal;
       PointCloud::Ptr cloud;
       PointCloud::Ptr original_cloud;
+      arvc::color color;
 
 
   };

@@ -3,6 +3,7 @@
 #include <ignition/math/Matrix4.hh>
 #include <ignition/math.hh>
 #include <pcl/pcl_config.h>
+#include <pcl/common/angles.h>
 
 #include <Eigen/Geometry>
 
@@ -25,6 +26,10 @@ public:
         this->RobotBaseToSensorTF = Eigen::Affine3f::Identity();
         this->basis = Eigen::Vector3f(0,0,1);
         this->viewer.reset(new pcl::visualization::PCLVisualizer("viewer"));
+        this->v1=(0);
+        this->v2=(1);
+        this->viewer->createViewPort(0.0, 0.0, 0.5, 1.0, this->v1);
+        this->viewer->createViewPort(0.5, 0.0, 1.0, 1.0, this->v2);
     }
 
     // CONSTRUCTOR
@@ -37,6 +42,10 @@ public:
         this->RobotBaseToSensorTF = Eigen::Affine3f::Identity();
         this->basis = Eigen::Vector3f(0,0,1);
         this->viewer.reset(new pcl::visualization::PCLVisualizer("viewer"));
+        this->v1=(0);
+        this->v2=(1);
+        this->viewer->createViewPort(0.0, 0.0, 0.5, 1.0, this->v1);
+        this->viewer->createViewPort(0.5, 0.0, 1.0, 1.0, this->v2);
     }
 
     // DESTRUCTOR
@@ -64,7 +73,14 @@ public:
 
         if (point_indices->indices.size() > 100)
         {
-            cout << "Initial initial_plane found" << endl;
+            cout << YELLOW << "\n- ITERACIÓN: " << 0 << " -------------------------------" << RESET << endl;
+            cout << "Plane_" << this->counter << " found" << endl;
+            this->initial_plane.setPlane(plane_coeffs, point_indices, this->cloud_search_xyz);
+            
+            // this->add_indices_to_view(this->initial_plane.inliers, this->cloud_search_xyz);
+            // this->add_plane_to_view(this->initial_plane);
+            arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
+            
             this->counter++;
         }
 
@@ -72,19 +88,16 @@ public:
         // *this->initial_plane.coeffs = *plane_coeffs;
         // *this->initial_plane.inliers = *point_indices;
 
-        this->initial_plane.setPlane(plane_coeffs, point_indices, this->cloud_search_xyz);
 
-        this->add_indices_to_view(this->initial_plane.inliers);
-        arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
     }
 
 
-    arvc::plane detect_plane(Eigen::Vector3f direction){
+    arvc::plane detect_plane(const Eigen::Vector3f& direction){
         
         pcl::SACSegmentation<PointT> ransac;
         arvc::plane plane;
 
-        ransac.setInputCloud(this->cloud_search_xyz);
+        ransac.setInputCloud(this->cloud_in_xyz);
         ransac.setOptimizeCoefficients(true);
         ransac.setModelType(pcl::SACMODEL_PLANE);
         ransac.setMethodType(pcl::SAC_RANSAC);
@@ -93,20 +106,69 @@ public:
         ransac.setAxis(direction);
         ransac.segment(*plane.inliers, *plane.coeffs);
 
-        
-        if (plane.inliers->indices.size() > 500)
+        if (plane.inliers->indices.size() > 100)
         {
             cout << "Plane_" << this->counter << " found" << endl;
-            plane.setPlane(plane.coeffs, plane.inliers, this->cloud_search_xyz);
-            this->add_indices_to_view(plane.inliers);
-            arvc::remove_indices_from_cloud(this->cloud_search_xyz, plane.inliers);
+            plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
+            // this->add_indices_to_view(plane.inliers, this->cloud_in_xyz); 
+            // td.add_plane_to_view(detected_plane);
+            // arvc::remove_indices_from_cloud(this->cloud_in_xyz, plane.inliers);
+
             this->counter++;
         }
         else
+        {
             cout << "Plane not found" << endl;
+            plane = arvc::plane();
+        }
         
+        cout << "Plane Inside Detect Plane: " << endl;
+        cout << plane << endl;
+
         return plane;
     }
+
+
+    arvc::plane detect_perpendicular_plane(const Eigen::Vector3f& direction){
+        
+        pcl::SACSegmentation<PointT> ransac;
+        arvc::plane plane;
+
+        // arvc::visualizeCloud(this->cloud_in_xyz);
+
+        ransac.setInputCloud(this->cloud_in_xyz);
+        ransac.setOptimizeCoefficients(true);
+        ransac.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
+        ransac.setMethodType(pcl::SAC_RANSAC);
+        ransac.setMaxIterations(10000);
+        ransac.setDistanceThreshold(0.02);
+        ransac.setAxis(direction);
+        ransac.setEpsAngle (pcl::deg2rad (5.0));
+        ransac.segment(*plane.inliers, *plane.coeffs);
+
+        if (plane.inliers->indices.size() > 500)
+        {
+            cout << "Plane_" << this->counter << " found" << endl;
+            plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
+            this->add_indices_to_view(plane.inliers, this->cloud_in_xyz); 
+            // this->add_plane_to_view(plane);
+            arvc::remove_indices_from_cloud(this->cloud_in_xyz, plane.inliers);
+
+            this->counter++;
+        }
+
+        else
+        {
+            cout << "Plane not found" << endl;
+            plane = arvc::plane();
+        }
+        
+        // cout << "Plane Inside Detect Plane: " << endl;
+        // cout << plane << endl;
+
+        return plane;
+    }
+
 
 
     void get_close_points(){
@@ -141,23 +203,15 @@ public:
 
     void view_result()
     {
-        int v1(0);
-        int v2(1);
-        
-        this->viewer->createViewPort(0.0, 0.0, 0.5, 1.0, v1);
-        this->viewer->createViewPort(0.5, 0.0, 1.0, 1.0, v2);
-
         if (fs::exists("camera.txt"))
             this->viewer->loadCameraParameters("camera.txt");
 
-        this->viewer->setBackgroundColor(0.5, 0.5, 0.5);
-        
-        // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color(this->cloud_search_xyz, 200, 200, 200);
-        // this->viewer->addPointCloud<pcl::PointXYZ>(this->cloud_search_xyz, color, "cloud_search");
+        this->viewer->setBackgroundColor(0.8, 0.8, 0.8);
+
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color(this->cloud_in_xyz, 100, 100, 100);
+        this->viewer->addPointCloud<pcl::PointXYZ>(this->cloud_in_xyz, color, "cloud_search", this->v1);
 
         this->add_sensor_origin();
-        this->add_normal_to_view(this->initial_plane);
-        this->add_plane_to_view(this->initial_plane);
         this->draw_search_directions();
 
         this->hold_view();
@@ -174,7 +228,7 @@ public:
         this->viewer->addSphere(origin_point, 0.02, "sphere");
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere");
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere");
-        this->viewer->addText3D("os_0", origin_point, 0.02, 1.0, 1.0, 1.0, "origin_text");
+        this->viewer->addText3D("os_0", origin_point, 0.02, 0.0, 0.0, 0.0, "origin_text");
 
         // SENSOR COORDINATE SYSTEM 
         this->viewer->addCoordinateSystem(0.1, this->RobotBaseToSensorTF, "sensor");
@@ -185,7 +239,7 @@ public:
         this->viewer->addSphere(sensor_origin_point, 0.02, "sphere2");
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere2");
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere2");
-        this->viewer->addText3D("os_sensor", sensor_origin_point, 0.02, 1.0, 1.0, 1.0, "sensor_origin_text");
+        this->viewer->addText3D("os_sensor", sensor_origin_point, 0.02, 0.0, 0.0, 0.0, "sensor_origin_text");
 
         /*      
         Eigen::Vector3f vector_x;
@@ -217,17 +271,8 @@ public:
         plane_normal.z = _plane.normal[2];
 
 
-        // this->add_indices_to_view(this->initial_plane.inliers);
-        // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> plane_color(this->initial_plane.cloud, 0, 255, 0);
-        // this->viewer->addPointCloud<pcl::PointXYZ>(this->initial_plane.cloud, plane_color, "plane_points");
-        // this->viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "plane_points");
-        
-        this->viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(plane_normal, centroid, 1.0, 1.0, 0.0, false, "normal");
+        this->viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(plane_normal, centroid, 1.0, 1.0, 0.0, false, "normal", this->v2);
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 10, "normal");
-
-        // this->viewer->addPlane(*this->initial_plane.coeffs, centroid.x, centroid.y, centroid.z, "initial_plane");
-        // this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0.0, 0.0, 0.5, "initial_plane");
-        // this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "initial_plane");
 
     }
 
@@ -243,23 +288,27 @@ public:
         this->ss.str("");
         this->ss << "plane_" << this->counter;
 
-        this->viewer->addPlane(*_plane.coeffs, centroid.x, centroid.y, centroid.z, this->ss.str());
-        this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, this->ss.str());
+        this->viewer->addPlane(*_plane.coeffs, centroid.x, centroid.y, centroid.z, this->ss.str(), this->v2);
+        this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, _plane.color.r / 255, _plane.color.g / 255, _plane.color.b / 255, this->ss.str());
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, this->ss.str());
     }
 
 
-    void add_indices_to_view(pcl::PointIndicesPtr& indices){
+    void add_indices_to_view(pcl::PointIndicesPtr& indices, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_origin){
+        
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::copyPointCloud(*this->cloud_search_xyz, *indices, *cloud);
+        pcl::copyPointCloud(*cloud_origin, *indices, *cloud);
+
         this->ss.str("");
         this->ss << "cloud_" << this->counter;
 
-        pcl::RGB color;
-        pcl::visualization::getRandomColors(color, 0,255);
+        cout << "Adding " << this->ss.str() << " to the viewer with " << cloud->points.size() << " points" << endl;
 
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, color.r, color.g, color.b);
-        this->viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, this->ss.str());
+        pcl::RGB color;
+        color = arvc::get_random_color(256, 0);
+
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, (int) color.r, (int) color.g, (int) color.b);
+        this->viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, this->ss.str(), this->v2);
 
     }
     
@@ -277,14 +326,15 @@ public:
     void draw_search_directions()
     {
         pcl::PointXYZ origin(0,0,0);
+        this->second_direction = 50*this->second_direction;
 
         pcl::PointXYZ x_vector(this->second_direction[0], this->second_direction[1], this->second_direction[2]);
         pcl::PointXYZ y_vector(this->third_direction[0], this->third_direction[1], this->third_direction[2]);
         pcl::PointXYZ z_vector(this->basis[0], this->basis[1], this->basis[2]);
 
-        viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(x_vector, origin, 1.0, 0.0, 0.0, false, "x_direction");
-        viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(y_vector, origin, 0.0, 1.0, 0.0, false, "y_direction");
-        viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(z_vector, origin, 0.0, 0.0, 1.0, false, "z_direction");
+        viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(x_vector, origin, 1.0, 0.0, 0.0, false, "x_direction", this->v2);
+        // viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(y_vector, origin, 0.0, 1.0, 0.0, false, "y_direction", this->v2);
+        // viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(z_vector, origin, 0.0, 0.0, 1.0, false, "z_direction", this->v2);
 
     }
     
@@ -307,7 +357,9 @@ public:
     stringstream ss;
 
     private:
-    pcl::visualization::PCLVisualizer::Ptr viewer;
+        pcl::visualization::PCLVisualizer::Ptr viewer;
+        int v1;
+        int v2;
 
 };
 
@@ -323,26 +375,41 @@ int main(int argc, char const *argv[])
 
     
 
-    td.cloud_in_xyz = arvc::readCloud("/home/fran/datasets/test_visualization/pcd/00000.pcd");
-    // td.cloud_in_xyz = arvc::readCloud("/media/arvc/data/datasets/ARVCTRUSS/valid/ply_xyzlabelnormal/00000.ply");
+    // td.cloud_in_xyz = arvc::readCloud("/home/fran/datasets/test_visualization/pcd/00000.pcd");
+    td.cloud_in_xyz = arvc::readCloud("/media/arvc/data/datasets/ARVCTRUSS/valid/ply_xyzlabelnormal/00000.ply");
     td.cloud_in_xyz = arvc::remove_origin_points(td.cloud_in_xyz);
     td.get_close_points();
     pcl::transformPointCloud(*td.cloud_search_xyz, *td.cloud_search_xyz, td.RobotBaseToSensorTF);
+    pcl::transformPointCloud(*td.cloud_in_xyz, *td.cloud_in_xyz, td.RobotBaseToSensorTF);
 
     td.detect_initial_plane();
     td.tf_base_to_sensor(td.initial_plane.normal);
     td.compute_third_direction();
 
-    int count = 0;
+    int count = 1;
+    int cloud_initial_size = td.cloud_in_xyz->points.size();
+    int detected_plane_size = 1000;
+
+    auto search_direction = td.second_direction;
+    
+    // pcl::visualization::PCLVisualizer my_vis("visualizador");
+
     do
     {
-        arvc::plane detected_plane = td.detect_plane(-td.second_direction);
+        cout << YELLOW << "\n- ITERACIÓN: " << count << " -------------------------------" << RESET << endl;
+
+        arvc::plane detected_plane = td.detect_perpendicular_plane(-search_direction);
+        detected_plane_size = detected_plane.inliers->indices.size();  
+        
+        // my_vis.addPointCloud(td.cloud_in_xyz, "cloud");
+        // my_vis.addCoordinateSystem(0.5, "origin");
+        // while (my_vis.wasStopped() == false){
+        //     my_vis.spinOnce(100);
+        // }
+
         count++;
-        td.add_indices_to_view(detected_plane.inliers);        
-        td.add_plane_to_view(detected_plane);
-        td.add_normal_to_view(detected_plane);
-    // } while (detected_plane.inliers->indices.size() > 0);
-    } while (count < 2);
+    } while (detected_plane_size > 100 && td.cloud_in_xyz->points.size() > cloud_initial_size * 0.1);
+    // } while (count < 10);
 
 
     
