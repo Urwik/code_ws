@@ -20,6 +20,8 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/filter_indices.h>
+#include <pcl/filters/project_inliers.h>
+
 
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -1036,7 +1038,6 @@ namespace arvc
     while(!vis.wasStopped())
       vis.spinOnce(100);
 
-    vis.close();
   }
 
   /**
@@ -1346,7 +1347,7 @@ namespace arvc
   };
 
 
-  axes3d compute_eigenvectors3D(const PointCloud::Ptr& _cloud_in){
+  axes3d compute_eigenvectors3D(const PointCloud::Ptr& _cloud_in, const bool& force_ortogonal = false){
     axes3d _axes;
     Eigen::Vector4f centroid;
     pcl::compute3DCentroid(*_cloud_in, centroid);
@@ -1356,7 +1357,8 @@ namespace arvc
     Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
     
     // Forzar a que el tercer vector sea perpendicular a los anteriores.
-    // eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
+    if (force_ortogonal)
+      eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
     
     _axes.x = eigDx.col(0);
     _axes.y = eigDx.col(1);
@@ -1364,6 +1366,18 @@ namespace arvc
 
     return _axes;
   }
+
+  Eigen::Vector3f compute_eigenvalues3D(const PointCloud::Ptr& _cloud_in){
+
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*_cloud_in, centroid);
+    Eigen::Matrix3f covariance;
+    pcl::computeCovarianceMatrixNormalized(*_cloud_in, centroid, covariance);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
+
+    return eigen_solver.eigenvalues();
+  }
+
 
 
   class color
@@ -1465,6 +1479,7 @@ namespace arvc
         *this->original_cloud = *_cloud_in;
         this->getNormal();
         this->getCloud();
+        this->getEigenVectors();
         this->color.random();
       };
 
@@ -1484,6 +1499,17 @@ namespace arvc
         return normal;
       }
 
+      void getEigenVectors(){
+        this->axes = arvc::compute_eigenvectors3D(this->cloud, false);
+      }
+
+      void projectOnPlane(){
+        pcl::ProjectInliers<PointT> proj;
+        proj.setModelType(pcl::SACMODEL_PLANE);
+        proj.setInputCloud(this->cloud);
+        proj.setModelCoefficients(this->coeffs);
+        proj.filter(*this->cloud);
+      }
 
       pcl::ModelCoefficientsPtr coeffs;
       pcl::PointIndicesPtr inliers;
@@ -1491,8 +1517,97 @@ namespace arvc
       PointCloud::Ptr cloud;
       PointCloud::Ptr original_cloud;
       arvc::color color;
+      arvc::axes3d axes;
 
 
   };
 
+
+  class viewer {
+    private:
+      pcl::visualization::PCLVisualizer::Ptr view;
+      int cloud_count;
+
+    public:
+      int v1,v2,v3,v4;
+      
+      viewer(){
+        this->view.reset(new pcl::visualization::PCLVisualizer("ARVC_VIEWER"));
+        this->cloud_count = 0;
+        this->v1 = 0;
+        this->v2 = 0;
+        this->v3 = 0;
+        this->v4 = 0;
+
+      }
+
+      viewer(const string& name){
+        this->view.reset(new pcl::visualization::PCLVisualizer(name));
+        this->cloud_count = 0;
+        this->v1 = 0;
+        this->v2 = 0;
+        this->v3 = 0;
+        this->v4 = 0;
+
+      }
+
+      ~viewer(){}
+
+    void addCloud(const PointCloud::Ptr& cloud, const int& viewport){
+
+      this->view->addPointCloud<PointT> (cloud, "cloud_" + to_string(this->cloud_count), viewport);
+      this->cloud_count++;
+    }
+    
+    void addCloud(const PointCloud::Ptr& cloud){
+      this->view->addPointCloud<PointT> (cloud, "cloud_" + to_string(this->cloud_count));
+      this->cloud_count++;
+    }
+
+    void addOrigin()
+    {
+      this->view->addCoordinateSystem(0.1, "origin");
+      pcl::PointXYZ origin_point(0,0,0);
+      this->view->addSphere(origin_point, 0.02, "sphere");
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere");
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere");
+      this->view->addText3D("os_0", origin_point, 0.02, 0.0, 0.0, 0.0, "origin_text");
+    }
+
+    void addCube(const float& _range){
+      this->view->addCube(-_range, _range, -_range, _range, -_range, _range, 1.0, 1.0, 0.0, "cube");
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube");
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "cube");
+    }
+
+    void setViewports(const int& viewports){
+
+      switch (viewports)
+      {
+      case 1:
+        break;
+      case 2:
+        this->view->createViewPort(0.0, 0.0, 0.5, 1.0, this->v1);
+        this->view->createViewPort(0.5, 0.0, 1.0, 1.0, this->v2);
+        break;
+      case 3:
+        this->view->createViewPort(0.0, 0.5, 0.5, 1, this->v1);
+        this->view->createViewPort(0.5, 0.5, 1.0, 1, this->v2);
+        this->view->createViewPort(0.0, 0.0, 1.0, 0.5, this->v3);
+      case 4:
+        this->view->createViewPort(0.0, 0.5, 0.5, 1, this->v1);
+        this->view->createViewPort(0.5, 0.5, 1.0, 1, this->v2);
+        this->view->createViewPort(0.0, 0.0, 0.5, 0.5, this->v3);
+        this->view->createViewPort(0.5, 0.0, 1.0, 0.5, this->v4);
+      default:
+        break;
+      }
+    }
+
+    void show(){
+      while(!this->view->wasStopped())
+        this->view->spinOnce(100);
+    }
+
+  };
 }

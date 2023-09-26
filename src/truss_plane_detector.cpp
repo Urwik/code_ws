@@ -85,7 +85,7 @@ public:
             cout << "Plane_" << this->counter << " found" << endl;
             this->initial_plane.setPlane(plane_coeffs, point_indices, this->cloud_search_xyz);
             
-            arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
+            // arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
             
             this->counter++;
         }
@@ -221,9 +221,9 @@ public:
         if (fs::exists("camera.txt"))
             this->viewer->loadCameraParameters("camera.txt");
 
-        this->viewer->setBackgroundColor(0.8, 0.8, 0.8);
+        this->viewer->setBackgroundColor(0.0, 0.0, 0.0);
 
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color(this->cloud_in_xyz, 100, 100, 100);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color(this->cloud_in_xyz, 255, 255, 255);
         this->viewer->addPointCloud<pcl::PointXYZ>(this->cloud_in_xyz, color, "cloud_search", this->v1);
 
         this->add_sensor_origin();
@@ -351,7 +351,8 @@ public:
         viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(z_vector, origin, 0.0, 0.0, 1.0, false, "z_direction", this->v2);
 
     }
-    
+
+
     void add_plane_eigenvectors(const arvc::plane& _plane)
     {
         arvc::axes3d axis3D = arvc::compute_eigenvectors3D(_plane.cloud);
@@ -364,6 +365,7 @@ public:
         this->viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(axis3D.getPoint(axis3D.z, centroid.getVector4fMap()), centroid, 0.0, 0.0, 1.0, false, "eigenvector_3", this->v2);
         
     }
+
 
     private:
         pcl::visualization::PCLVisualizer::Ptr viewer;
@@ -402,19 +404,36 @@ int main(int argc, char const *argv[])
     td.RobotBaseToSensorTF.translation() = Eigen::Vector3f(0.1, 0.0, 0.3);
     td.RobotBaseToSensorTF.linear() = Eigen::Quaternionf::Identity().toRotationMatrix();
 
-    // td.cloud_in_xyz = arvc::readCloud("/home/fran/datasets/test_visualization/pcd/00000.pcd");
-    td.cloud_in_xyz = arvc::readCloud("/home/arvc/arvc_saved_cloud.pcd");
+    // COMMENT OPTION DEPENDING ON THE COMPUTER YOU ARE USING
+    td.cloud_in_xyz = arvc::readCloud("../examples/example_cloud.pcd");
+    // td.cloud_in_xyz = arvc::readCloud("/home/arvc/arvc_saved_cloud.pcd");
 
+    // FILTERS TO APPLY TO THE INPUT CLOUD
     td.cloud_in_xyz = arvc::remove_origin_points(td.cloud_in_xyz);
-    td.cloud_in_xyz = arvc::voxel_filter(td.cloud_in_xyz, 0.05);
+    // td.cloud_in_xyz = arvc::voxel_filter(td.cloud_in_xyz, 0.05);
+
+    // APPLY TRANSFORMATION TO THE ROBOT BASE
+    pcl::transformPointCloud(*td.cloud_in_xyz, *td.cloud_in_xyz, td.RobotBaseToSensorTF);
+    // pcl::transformPointCloud(*td.cloud_search_xyz, *td.cloud_search_xyz, td.RobotBaseToSensorTF); // No es necesario si se transforma la inicial
 
     td.get_close_points();
-    pcl::transformPointCloud(*td.cloud_search_xyz, *td.cloud_search_xyz, td.RobotBaseToSensorTF);
-    pcl::transformPointCloud(*td.cloud_in_xyz, *td.cloud_in_xyz, td.RobotBaseToSensorTF);
-
     td.detect_initial_plane();
     td.add_indices_to_view(td.initial_plane.inliers, td.cloud_search_xyz, arvc::color(255,0,0));
     td.add_plane_eigenvectors(td.initial_plane);
+    
+    arvc::viewer view;
+    view.setViewports(2);
+    view.addCloud(td.initial_plane.cloud, view.v1);
+
+    Eigen::Affine3f tf;
+    pcl::transformBetween2CoordinateSystems(Eigen::Vector3f(1,0,0),Eigen::Vector3f(0,1,0), td.initial_plane.axes.x, td.initial_plane.axes.y, tf);
+    pcl::transformPointCloud(*td.initial_plane.cloud, *td.initial_plane.cloud, tf);
+
+    // td.initial_plane.projectOnPlane();
+    view.addCloud(td.initial_plane.cloud, view.v2);
+    view.addOrigin();
+    view.show();
+
 
     // td.tf_base_to_sensor(td.initial_plane.normal);
     // td.compute_third_direction();
