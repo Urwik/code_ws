@@ -418,25 +418,34 @@ int main(int argc, char const *argv[])
 
     td.get_close_points();
     td.detect_initial_plane();
-    td.add_indices_to_view(td.initial_plane.inliers, td.cloud_search_xyz, arvc::color(255,0,0));
-    td.add_plane_eigenvectors(td.initial_plane);
-    
-    arvc::viewer view;
-    view.setViewports(2);
-    view.addCloud(td.initial_plane.cloud, view.v1);
+    td.initial_plane.projectOnPlane();
+    // td.add_indices_to_view(td.initial_plane.inliers, td.cloud_search_xyz, arvc::color(255,0,0));
+    // td.add_plane_eigenvectors(td.initial_plane);
 
+
+    // AÑADO NUBE INICIAL
+    arvc::viewer view;
+
+    // APLICO LA TRANSFORMACIÓN
     Eigen::Affine3f tf;
     tf.translation() = td.initial_plane.centroid.head<3>();
-    tf.linear() = td.initial_plane.axes.rot_matrix;
+    tf.linear() = td.initial_plane.eigenvectors.getRotationMatrix();
     pcl::transformPointCloud(*td.initial_plane.cloud, *td.initial_plane.cloud, tf.inverse());
 
+    view.addCloud(td.initial_plane.cloud, arvc::color::GREEN_COLOR);
 
-    // td.initial_plane.projectOnPlane();
-    view.addCloud(td.initial_plane.cloud, view.v2);
-    view.addOrigin(view.v2);
-    view.addCoordinateSystem(tf, view.v2);   
+    pcl::PointXYZ max_point;
+    pcl::PointXYZ min_point;
+
+    pcl::getMinMax3D(*td.initial_plane.cloud, min_point, max_point);
+    view.addCube(min_point, max_point);
+
+    view.addOrigin();
+    // view.addCoordinateSystem(tf);
+    // view.addEigenVectors(td.initial_plane.centroid.head<3>(), td.initial_plane.eigenvectors);
     view.show();
 
+    // view.addCoordinateSystem(tf, view.v1);   
 
     // td.tf_base_to_sensor(td.initial_plane.normal);
     // td.compute_third_direction();
