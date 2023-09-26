@@ -1316,7 +1316,13 @@ namespace arvc
   private:
     /* data */
   public:
-    axes3d(/* args */){}
+    axes3d(/* args */){
+      this->x = Eigen::Vector3f::Zero();
+      this->y = Eigen::Vector3f::Zero();
+      this->z = Eigen::Vector3f::Zero();
+      this->rot_matrix = Eigen::Matrix3f::Identity();
+
+    }
     ~axes3d(){}
 
     pcl::PointXYZ getPoint(Eigen::Vector3f _vector, Eigen::Vector4f _centroid){
@@ -1324,10 +1330,6 @@ namespace arvc
       point.x = _vector(0) + _centroid(0);
       point.y = _vector(1) + _centroid(1);
       point.z = _vector(2) + _centroid(2);
-
-      rot_matrix << x(0), y(0), z(0),
-                    x(1), y(1), z(1),
-                    x(2), y(2), z(2);
 
       return point;
     }
@@ -1342,6 +1344,15 @@ namespace arvc
       os << "Z: [ " << a.z.x() << ", " << a.z.y() << ", " << a.z.z() << " ]" << endl;
 
       return os;
+    }
+
+    Eigen::Matrix3f getRotationMatrix(){
+
+      this->rot_matrix << x.x(), y.x(), z.x(),
+                          x.y(), y.y(), z.y(),
+                          x.z(), y.z(), z.z();
+
+      return this->rot_matrix;
     }
 
     Eigen::Matrix3f rot_matrix;
@@ -1359,14 +1370,14 @@ namespace arvc
     pcl::computeCovarianceMatrixNormalized(*_cloud_in, centroid, covariance);
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
     Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
-    
+
     // Forzar a que el tercer vector sea perpendicular a los anteriores.
     if (force_ortogonal)
       eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
     
-    _axes.x = eigDx.col(0);
-    _axes.y = eigDx.col(1);
-    _axes.z = eigDx.col(2);
+    _axes.x = eigDx.col(2).normalized();
+    _axes.y = eigDx.col(1).normalized();
+    _axes.z = eigDx.col(0).normalized();
 
     return _axes;
   }
@@ -1379,7 +1390,7 @@ namespace arvc
     pcl::computeCovarianceMatrixNormalized(*_cloud_in, centroid, covariance);
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
 
-    return eigen_solver.eigenvalues();
+    return eigen_solver.eigenvalues().reverse();
   }
 
 
@@ -1387,16 +1398,15 @@ namespace arvc
   class color
   {
     public:
+      color(int min = 0, int max = 255){
+        this->random(min, max);
+      }
+
       color(int _r, int _g, int _b){
         this->r = _r;
         this->g = _g;
         this->b = _b;
       }
-
-      color(int min = 0, int max = 255){
-        this->random(min, max);
-      }
-
 
       friend std::ostream& operator<<(std::ostream& os, const arvc::color& c)
       {
@@ -1416,10 +1426,20 @@ namespace arvc
         this->b = (int) this->b / 255;
       }
 
+      static const color RED_COLOR;
+      static const color BLUE_COLOR;
+      static const color GREEN_COLOR;
+      static const color YELLOW_COLOR;
+      static const color WHITE_COLOR;
       int r;
       int g;
       int b;
   };
+  const arvc::color arvc::color::RED_COLOR = arvc::color(255,0,0);
+  const arvc::color arvc::color::BLUE_COLOR = arvc::color(0,0,255);
+  const arvc::color arvc::color::GREEN_COLOR = arvc::color(0,255,0);
+  const arvc::color arvc::color::YELLOW_COLOR = arvc::color(255,255,0);
+  const arvc::color arvc::color::WHITE_COLOR = arvc::color(255,255,255);
 
 
   class direction
@@ -1484,6 +1504,7 @@ namespace arvc
         this->getNormal();
         this->getCloud();
         this->getEigenVectors();
+        this->getEigenValues();
         this->getCentroid();  
         this->color.random();
       };
@@ -1505,7 +1526,12 @@ namespace arvc
       }
 
       void getEigenVectors(){
-        this->axes = arvc::compute_eigenvectors3D(this->cloud, false);
+        this->eigenvectors = arvc::compute_eigenvectors3D(this->cloud, false);
+      }
+
+      void getEigenValues(){
+        this->eigenvalues = arvc::compute_eigenvalues3D(this->cloud);
+        cout << this->eigenvalues << endl;
       }
 
       void projectOnPlane(){
@@ -1527,7 +1553,8 @@ namespace arvc
       PointCloud::Ptr cloud;
       PointCloud::Ptr original_cloud;
       arvc::color color;
-      arvc::axes3d axes;
+      arvc::axes3d eigenvectors;
+      Eigen::Vector3f eigenvalues;
 
 
   };
@@ -1563,26 +1590,30 @@ namespace arvc
 
       ~viewer(){}
 
-    void addCloud(const PointCloud::Ptr& cloud, const int& viewport){
+    void addCloud(const PointCloud::Ptr& cloud, const int& viewport=0){
 
       this->view->addPointCloud<PointT> (cloud, "cloud_" + to_string(this->cloud_count), viewport);
       this->cloud_count++;
     }
     
-    void addCloud(const PointCloud::Ptr& cloud){
-      this->view->addPointCloud<PointT> (cloud, "cloud_" + to_string(this->cloud_count));
+
+    void addCloud(const PointCloud::Ptr& cloud, const arvc::color& _color){
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> single_color(cloud, _color.r, _color.g, _color.b);
+      this->view->addPointCloud<PointT> (cloud, single_color, "cloud_" + to_string(this->cloud_count));
       this->cloud_count++;
     }
 
+
     void addOrigin(const int& _viewport= 0)
     {
-      this->view->addCoordinateSystem(0.1, "origin", _viewport);
+      this->view->addCoordinateSystem(0.1, "origin"+to_string(_viewport), _viewport);
       pcl::PointXYZ origin_point(0,0,0);
-      this->view->addSphere(origin_point, 0.02, "sphere", _viewport);
-      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere", _viewport);
-      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere", _viewport);
-      this->view->addText3D("os_0", origin_point, 0.02, 0.0, 0.0, 0.0, "origin_text", _viewport);
+      this->view->addSphere(origin_point, 0.02, "sphere"+to_string(_viewport), _viewport);
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere"+to_string(_viewport), _viewport);
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere"+to_string(_viewport), _viewport);
+      this->view->addText3D("origin", origin_point, 0.02, 1.0, 1.0, 1.0, "origin_text"+to_string(_viewport), _viewport);
     }
+
 
     void addCube(const float& _range){
       this->view->addCube(-_range, _range, -_range, _range, -_range, _range, 1.0, 1.0, 0.0, "cube");
@@ -1590,9 +1621,21 @@ namespace arvc
       this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "cube");
     }
 
-    void addCoordinateSystem(const Eigen::Affine3f& tf, const int& viewport){
-      this->view->addCoordinateSystem(0.1, tf, "relative", viewport);
+    void addCube(const pcl::PointXYZ& _min, const pcl::PointXYZ& _max ){
+      this->view->addCube(_min.x, _max.x, _min.y, _max.y, _min.z, _max.z, 1.0, 1.0, 0.0, "cube");
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube");
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "cube");
     }
+
+    void addCoordinateSystem(const Eigen::Affine3f& tf, const int& _viewport=0){
+      this->view->addCoordinateSystem(0.1, tf, "relative"+to_string(_viewport), _viewport);
+      
+      pcl::PointXYZ relative_origin(tf.translation().x(), tf.translation().y(), tf.translation().z());
+
+      this->view->addText3D("relative", relative_origin, 0.02, 1.0, 1.0, 1.0, "relative_text"+to_string(_viewport), _viewport);
+
+    }
+
 
     void setViewports(const int& viewports){
 
@@ -1617,6 +1660,21 @@ namespace arvc
         break;
       }
     }
+
+
+    void addEigenVectors(const Eigen::Vector3f& _origin, const arvc::axes3d& _axis, const int& _viewport=0){
+
+      pcl::PointXYZ origin(_origin.x(), _origin.y(), _origin.z());
+      pcl::PointXYZ target_x(_axis.x.x() + _origin.x(), _axis.x.y() + _origin.y(), _axis.x.z() + _origin.z());
+      pcl::PointXYZ target_y(_axis.y.x() + _origin.x(), _axis.y.y() + _origin.y(), _axis.y.z() + _origin.z());
+      pcl::PointXYZ target_z(_axis.z.x() + _origin.x(), _axis.z.y() + _origin.y(), _axis.z.z() + _origin.z());
+
+      this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_x, origin, 1.0, 0.0, 0.0, false, "eigenvector_x", _viewport);
+      this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_y, origin, 0.0, 1.0, 0.0, false, "eigenvector_y", _viewport);
+      this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_z, origin, 0.0, 0.0, 1.0, false, "eigenvector_z", _viewport);
+
+    }
+
 
     void show(){
       while(!this->view->wasStopped())
