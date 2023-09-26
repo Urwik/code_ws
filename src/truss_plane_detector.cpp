@@ -426,12 +426,15 @@ int main(int argc, char const *argv[])
     view.addCloud(td.initial_plane.cloud, view.v1);
 
     Eigen::Affine3f tf;
-    pcl::transformBetween2CoordinateSystems(Eigen::Vector3f(1,0,0),Eigen::Vector3f(0,1,0), td.initial_plane.axes.x, td.initial_plane.axes.y, tf);
-    pcl::transformPointCloud(*td.initial_plane.cloud, *td.initial_plane.cloud, tf);
+    tf.translation() = td.initial_plane.centroid.head<3>();
+    tf.linear() = td.initial_plane.axes.rot_matrix;
+    pcl::transformPointCloud(*td.initial_plane.cloud, *td.initial_plane.cloud, tf.inverse());
+
 
     // td.initial_plane.projectOnPlane();
     view.addCloud(td.initial_plane.cloud, view.v2);
-    view.addOrigin();
+    view.addOrigin(view.v2);
+    view.addCoordinateSystem(tf, view.v2);   
     view.show();
 
 
@@ -462,7 +465,7 @@ int main(int argc, char const *argv[])
 
 
     
-    td.view_result();
+    // td.view_result();
 
     return 0;
 }

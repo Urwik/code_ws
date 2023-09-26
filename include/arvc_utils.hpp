@@ -1325,6 +1325,10 @@ namespace arvc
       point.y = _vector(1) + _centroid(1);
       point.z = _vector(2) + _centroid(2);
 
+      rot_matrix << x(0), y(0), z(0),
+                    x(1), y(1), z(1),
+                    x(2), y(2), z(2);
+
       return point;
     }
 
@@ -1340,7 +1344,7 @@ namespace arvc
       return os;
     }
 
-
+    Eigen::Matrix3f rot_matrix;
     Eigen::Vector3f x;
     Eigen::Vector3f y;
     Eigen::Vector3f z;
@@ -1480,6 +1484,7 @@ namespace arvc
         this->getNormal();
         this->getCloud();
         this->getEigenVectors();
+        this->getCentroid();  
         this->color.random();
       };
 
@@ -1511,9 +1516,14 @@ namespace arvc
         proj.filter(*this->cloud);
       }
 
+      void getCentroid(){
+        pcl::compute3DCentroid(*this->cloud, this->centroid);
+      }
+
       pcl::ModelCoefficientsPtr coeffs;
       pcl::PointIndicesPtr inliers;
       Eigen::Vector3f normal;
+      Eigen::Vector4f centroid;
       PointCloud::Ptr cloud;
       PointCloud::Ptr original_cloud;
       arvc::color color;
@@ -1564,20 +1574,24 @@ namespace arvc
       this->cloud_count++;
     }
 
-    void addOrigin()
+    void addOrigin(const int& _viewport= 0)
     {
-      this->view->addCoordinateSystem(0.1, "origin");
+      this->view->addCoordinateSystem(0.1, "origin", _viewport);
       pcl::PointXYZ origin_point(0,0,0);
-      this->view->addSphere(origin_point, 0.02, "sphere");
-      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere");
-      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere");
-      this->view->addText3D("os_0", origin_point, 0.02, 0.0, 0.0, 0.0, "origin_text");
+      this->view->addSphere(origin_point, 0.02, "sphere", _viewport);
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere", _viewport);
+      this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere", _viewport);
+      this->view->addText3D("os_0", origin_point, 0.02, 0.0, 0.0, 0.0, "origin_text", _viewport);
     }
 
     void addCube(const float& _range){
       this->view->addCube(-_range, _range, -_range, _range, -_range, _range, 1.0, 1.0, 0.0, "cube");
       this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube");
       this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "cube");
+    }
+
+    void addCoordinateSystem(const Eigen::Affine3f& tf, const int& viewport){
+      this->view->addCoordinateSystem(0.1, tf, "relative", viewport);
     }
 
     void setViewports(const int& viewports){
