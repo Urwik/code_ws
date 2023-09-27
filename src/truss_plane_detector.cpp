@@ -4,6 +4,7 @@
 #include <ignition/math.hh>
 #include <pcl/pcl_config.h>
 #include <pcl/common/angles.h>
+#include <pcl/segmentation/extract_clusters.h>
 
 #include <Eigen/Geometry>
 
@@ -12,13 +13,7 @@ namespace im = ignition::math;
 
 
 class truss_plane_detector
-{
-    struct direction
-    {
-        int index;
-        arvc::color color;
-    };
-    
+{   
 
 public:
 
@@ -54,6 +49,10 @@ public:
         this->viewer->createViewPort(0.0, 0.0, 0.5, 1.0, this->v1);
         this->viewer->createViewPort(0.5, 0.0, 1.0, 1.0, this->v2);
         this->search_directions.resize(3);
+
+        this->length_threshold = 0;
+        this->width_threshold = 0;
+        this->plane_clusters.resize(0);
     }
 
     // DESTRUCTOR
@@ -71,24 +70,53 @@ public:
         pcl::SACSegmentation<PointT> ransac;
         pcl::ModelCoefficientsPtr plane_coeffs (new pcl::ModelCoefficients);
 
-        ransac.setInputCloud(this->cloud_search_xyz);
-        ransac.setOptimizeCoefficients(true);
-        ransac.setModelType(pcl::SACMODEL_PLANE);
-        ransac.setMethodType(pcl::SAC_RANSAC);
-        ransac.setMaxIterations(1000);
-        ransac.setDistanceThreshold(0.02);
-        ransac.segment(*point_indices, *plane_coeffs);
 
-        if (point_indices->indices.size() > 100)
+        cout << YELLOW << "\n- DETECTING INITIAL PLANE -------------------------------" << RESET << endl;
+        int intento = 0;
+        bool all_clusters_valid = false;
+        do
         {
-            cout << YELLOW << "\n- ITERACIÓN: " << 0 << " -------------------------------" << RESET << endl;
-            cout << "Plane_" << this->counter << " found" << endl;
+            cout << "\n- ITERACIÓN: " << intento << " -------------------------------" << endl;
+
+            ransac.setInputCloud(this->cloud_search_xyz);
+            ransac.setOptimizeCoefficients(true);
+            ransac.setModelType(pcl::SACMODEL_PLANE);
+            ransac.setMethodType(pcl::SAC_RANSAC);
+            ransac.setMaxIterations(1000);
+            ransac.setDistanceThreshold(0.02);
+            ransac.segment(*point_indices, *plane_coeffs);
+            
+            arvc::viewer view;
+            
             this->initial_plane.setPlane(plane_coeffs, point_indices, this->cloud_search_xyz);
-            
-            // arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
-            
-            this->counter++;
-        }
+
+            // view.addCloud(this->initial_plane.cloud);
+
+            this->get_euclidean_clusters(this->initial_plane);
+
+            cout << "TAMAÑO DE CLUSTERIZACIÓN: " << this->plane_clusters.size() << endl;
+
+            if( this->plane_clusters.size() > 1){
+                for(arvc::plane plano : this->plane_clusters){
+                    if(this->validate_plane(plano)){
+                        all_clusters_valid = true;
+                    }
+                    else
+                        all_clusters_valid = false;
+
+                    view.addCloud(plano.cloud, plano.color);
+                }    
+            }
+
+            view.show();
+
+            arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
+            intento++;
+
+        } while (!all_clusters_valid);
+        
+        cout << "Initial plane found" << endl;
+        this->counter++;
     }
 
 
@@ -131,16 +159,18 @@ public:
 
     arvc::plane detect_perpendicular_plane(const arvc::direction& direction){
         
+        pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+        tree->setInputCloud(this->cloud_in_xyz);
+
         pcl::SACSegmentation<PointT> ransac;
         arvc::plane plane;
-
-        // arvc::visualizeCloud(this->cloud_in_xyz);
 
         ransac.setInputCloud(this->cloud_in_xyz);
         ransac.setOptimizeCoefficients(true);
         ransac.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
         ransac.setMethodType(pcl::SAC_RANSAC);
         ransac.setMaxIterations(10000);
+        ransac.setSamplesMaxDist(0.5, tree); //TODO
         ransac.setDistanceThreshold(0.02);
         ransac.setAxis(direction.vector);
         ransac.setEpsAngle (pcl::deg2rad (5.0));
@@ -151,7 +181,6 @@ public:
             cout << "Plane_" << this->counter << " found" << endl;
             plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
             this->add_indices_to_view(plane.inliers, this->cloud_in_xyz, direction.color); 
-            // this->add_plane_to_view(plane);
             arvc::remove_indices_from_cloud(this->cloud_in_xyz, plane.inliers);
 
             this->counter++;
@@ -163,9 +192,6 @@ public:
             plane = arvc::plane();
         }
         
-        // cout << "Plane Inside Detect Plane: " << endl;
-        // cout << plane << endl;
-
         return plane;
     }
 
@@ -180,7 +206,7 @@ public:
 
         pcl::getPointsInBox(*this->cloud_in_xyz, min_pt, max_pt, *indices);
         
-        pcl::ExtractIndices<pcl::PointXYZ> extract;
+        pcl::ExtractIndices<PointT> extract;
         
         extract.setInputCloud(this->cloud_in_xyz);
         extract.setIndices(indices);
@@ -255,13 +281,6 @@ public:
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere2");
         this->viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere2");
         this->viewer->addText3D("os_sensor", sensor_origin_point, 0.02, 0.0, 0.0, 0.0, "sensor_origin_text");
-
-        /*      
-        Eigen::Vector3f vector_x;
-        vector_x = this->RobotBaseToSensorTF * Eigen::Vector3f(5,0,0);
-        pcl::PointXYZ x_vector(vector_x[0], vector_x[1], vector_x[2]);
-        this->viewer->addLine(sensor_origin_point, x_vector, 1.0, 0.0, 0.0, "line_x"); 
-        */
        
     }
 
@@ -356,8 +375,7 @@ public:
     void add_plane_eigenvectors(const arvc::plane& _plane)
     {
         arvc::axes3d axis3D = arvc::compute_eigenvectors3D(_plane.cloud);
-        cout << "Eigenvectors: " << endl;
-        cout << axis3D << endl;
+
         pcl::PointXYZ centroid;
         pcl::computeCentroid(*_plane.cloud, centroid);
         this->viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(axis3D.getPoint(axis3D.x, centroid.getVector4fMap()), centroid, 1.0, 0.0, 0.0, false, "eigenvector_1", this->v2);
@@ -366,6 +384,48 @@ public:
         
     }
 
+
+    bool validate_plane(const arvc::plane& _plane){
+        if (_plane.length < this->length_threshold && _plane.width < this->width_threshold)
+            return true;
+        else
+            return false;
+    }
+
+
+    void get_euclidean_clusters(const arvc::plane& _plane){
+
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+        tree->setInputCloud (_plane.cloud);
+        std::vector<pcl::PointIndices> cluster_indices;
+
+        pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+        ec.setClusterTolerance (0.05); // 2cm
+        ec.setMinClusterSize (100);
+        ec.setMaxClusterSize (_plane.cloud->points.size()+1);
+        ec.setSearchMethod (tree);
+        ec.setInputCloud (_plane.cloud);
+        ec.extract(cluster_indices);
+
+        this->plane_clusters.resize(0);
+
+        if (cluster_indices.size() > 0)
+        {
+            for (pcl::PointIndices cluster : cluster_indices)
+            {
+                arvc::plane tmp_plane;
+                pcl::PointIndicesPtr indices_ptr(new pcl::PointIndices);
+
+                *indices_ptr = cluster;
+                
+                tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.cloud);
+                this->plane_clusters.push_back(tmp_plane);
+            }
+
+        }
+        else
+            this->plane_clusters.resize(0);
+    }
 
     private:
         pcl::visualization::PCLVisualizer::Ptr viewer;
@@ -381,6 +441,7 @@ public:
     float range_dist;
 
     arvc::plane initial_plane;
+    vector<arvc::plane> plane_clusters;
 
     Eigen::Vector3f basis;
     Eigen::Vector3f second_direction;
@@ -390,6 +451,8 @@ public:
     int counter = 0;
     stringstream ss;
     vector<arvc::direction> search_directions;
+    float length_threshold;
+    float width_threshold;
 
 };
 
@@ -400,6 +463,9 @@ int main(int argc, char const *argv[])
     const double RANGE_DIST = 1;
 
     truss_plane_detector td(RANGE_DIST);
+
+    td.length_threshold = 1.0;
+    td.width_threshold = 0.21;
 
     td.RobotBaseToSensorTF.translation() = Eigen::Vector3f(0.1, 0.0, 0.3);
     td.RobotBaseToSensorTF.linear() = Eigen::Quaternionf::Identity().toRotationMatrix();
@@ -415,34 +481,28 @@ int main(int argc, char const *argv[])
     // APPLY TRANSFORMATION TO THE ROBOT BASE
     pcl::transformPointCloud(*td.cloud_in_xyz, *td.cloud_in_xyz, td.RobotBaseToSensorTF);
     // pcl::transformPointCloud(*td.cloud_search_xyz, *td.cloud_search_xyz, td.RobotBaseToSensorTF); // No es necesario si se transforma la inicial
+    arvc::viewer view;
 
     td.get_close_points();
     td.detect_initial_plane();
-    td.initial_plane.projectOnPlane();
+
+    // td.initial_plane.projectOnPlane();
     // td.add_indices_to_view(td.initial_plane.inliers, td.cloud_search_xyz, arvc::color(255,0,0));
     // td.add_plane_eigenvectors(td.initial_plane);
 
 
+
+
     // AÑADO NUBE INICIAL
-    arvc::viewer view;
 
-    // APLICO LA TRANSFORMACIÓN
-    Eigen::Affine3f tf;
-    tf.translation() = td.initial_plane.centroid.head<3>();
-    tf.linear() = td.initial_plane.eigenvectors.getRotationMatrix();
-    pcl::transformPointCloud(*td.initial_plane.cloud, *td.initial_plane.cloud, tf.inverse());
+    view.addCloud(td.cloud_in_xyz);
+    view.addCloud(td.initial_plane.cloud, td.initial_plane.color);
 
-    view.addCloud(td.initial_plane.cloud, arvc::color::GREEN_COLOR);
+    view.addEigenVectors(td.initial_plane.centroid.head<3>(), td.initial_plane.eigenvectors);
+    view.addPolygon(td.initial_plane.polygon, td.initial_plane.color);
 
-    pcl::PointXYZ max_point;
-    pcl::PointXYZ min_point;
-
-    pcl::getMinMax3D(*td.initial_plane.cloud, min_point, max_point);
-    view.addCube(min_point, max_point);
 
     view.addOrigin();
-    // view.addCoordinateSystem(tf);
-    // view.addEigenVectors(td.initial_plane.centroid.head<3>(), td.initial_plane.eigenvectors);
     view.show();
 
     // view.addCoordinateSystem(tf, view.v1);   

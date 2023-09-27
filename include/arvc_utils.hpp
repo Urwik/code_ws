@@ -27,6 +27,7 @@
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <Eigen/Dense>
 #include <pcl/io/obj_io.h>
@@ -34,15 +35,6 @@
 // Visualization
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
-
-#define RESET   "\033[0m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"  
-#define YELLOW  "\033[33m"
-#define BLUE    "\033[34m"
-
-//****************************************************************************//
-// TYPE DEFINITIONS ////////////////////////////////////////////////////////////
 
 namespace fs = std::filesystem;
 
@@ -53,6 +45,16 @@ typedef pcl::PointCloud<PointT> PointCloud;
 typedef pcl::PointXYZI PointI;
 typedef pcl::PointCloud<PointI> PointCloudI;
 typedef pcl::PointCloud<pcl::PointXYZL> PointCloudL;
+
+#define RESET   "\033[0m"
+#define RED     "\033[31m"
+#define GREEN   "\033[32m"  
+#define YELLOW  "\033[33m"
+#define BLUE    "\033[34m"
+
+//****************************************************************************//
+// TYPE DEFINITIONS ////////////////////////////////////////////////////////////
+
 
 struct metrics
 {
@@ -1305,18 +1307,35 @@ namespace arvc
     color.g = (int) min + (rand() % max);
     color.b = (int) min + (rand() % max);
 
-    // cout << "Color: [ " << (int) color.r << ", " <<(int) color.g << ", " << (int) color.b << " ]" << endl;
-
     return color;
   }
 
+  vector<pcl::PointIndices> 
+  euclideanClustering(const PointCloud::Ptr& cloud_in){
 
-  class axes3d
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    
+    tree->setInputCloud (cloud_in);
+    std::vector<pcl::PointIndices> cluster_indices;
+
+    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+    ec.setClusterTolerance (0.02); // 2cm
+    ec.setMinClusterSize (100);
+    ec.setMaxClusterSize (25000);
+    ec.setSearchMethod (tree);
+    ec.setInputCloud (cloud_in);
+    ec.extract(cluster_indices);
+
+    return cluster_indices;
+  }
+
+#include <arvc_axes3d.hpp>
+  /* class axes3d
   {
   private:
-    /* data */
+
   public:
-    axes3d(/* args */){
+    axes3d(){
       this->x = Eigen::Vector3f::Zero();
       this->y = Eigen::Vector3f::Zero();
       this->z = Eigen::Vector3f::Zero();
@@ -1391,11 +1410,11 @@ namespace arvc
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
 
     return eigen_solver.eigenvalues().reverse();
-  }
+  } */
 
 
-
-  class color
+#include "arvc_color.hpp"
+/*   class color
   {
     public:
       color(int min = 0, int max = 255){
@@ -1435,11 +1454,12 @@ namespace arvc
       int g;
       int b;
   };
+  
   const arvc::color arvc::color::RED_COLOR = arvc::color(255,0,0);
   const arvc::color arvc::color::BLUE_COLOR = arvc::color(0,0,255);
   const arvc::color arvc::color::GREEN_COLOR = arvc::color(0,255,0);
   const arvc::color arvc::color::YELLOW_COLOR = arvc::color(255,255,0);
-  const arvc::color arvc::color::WHITE_COLOR = arvc::color(255,255,255);
+  const arvc::color arvc::color::WHITE_COLOR = arvc::color(255,255,255); */
 
 
   class direction
@@ -1450,13 +1470,14 @@ namespace arvc
   public:
     direction(/* args */){}
 
-    ~direction(){}    Eigen::Vector3f vector;
-
+    ~direction(){}    
+    Eigen::Vector3f vector;
     arvc::color color;
   };
 
 
-  class plane
+#include "arvc_plane.hpp"
+/*   class plane
   {
     public:
 
@@ -1469,20 +1490,21 @@ namespace arvc
         this->coeffs->values = {0,0,0,0};
         this->inliers->indices = {0};
         this->normal = Eigen::Vector3f(0,0,0);
+        this->polygon = vector<Eigen::Vector3f>(4);
       };
 
-/*       plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
-      {
-        this->coeffs.reset(new pcl::ModelCoefficients);
-        this->inliers.reset(new pcl::PointIndices);
+      // plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
+      // {
+      //   this->coeffs.reset(new pcl::ModelCoefficients);
+      //   this->inliers.reset(new pcl::PointIndices);
 
-        *this->coeffs = *_coeffs;
-        *this->inliers = *_indices;
+      //   *this->coeffs = *_coeffs;
+      //   *this->inliers = *_indices;
         
-        cout << "PLANE OBJ INLIERS SIZE: " << this->inliers->indices.size() << endl;
-        cout << "PLANE OBJ COEFFS: " << *this->coeffs << endl;
-        cout << "-----------------------------" << endl;
-      }; */
+      //   cout << "PLANE OBJ INLIERS SIZE: " << this->inliers->indices.size() << endl;
+      //   cout << "PLANE OBJ COEFFS: " << *this->coeffs << endl;
+      //   cout << "-----------------------------" << endl;
+      // }; 
 
       ~plane(){
         this->coeffs->values = {0,0,0,0};
@@ -1546,6 +1568,21 @@ namespace arvc
         pcl::compute3DCentroid(*this->cloud, this->centroid);
       }
 
+
+      void getPolygon(){
+        PointT max_point;
+        PointT min_point;
+
+        pcl::getMinMax3D(*this->cloud, min_point, max_point);
+
+        this->polygon[0] = Eigen::Vector3f(min_point.x, min_point.y, 0.0);
+        this->polygon[1] = Eigen::Vector3f(min_point.x, max_point.y, 0.0);
+        this->polygon[2] = Eigen::Vector3f(max_point.x, max_point.y, 0.0);
+        this->polygon[3] = Eigen::Vector3f(max_point.x, min_point.y, 0.0);
+      }
+
+
+
       pcl::ModelCoefficientsPtr coeffs;
       pcl::PointIndicesPtr inliers;
       Eigen::Vector3f normal;
@@ -1555,12 +1592,14 @@ namespace arvc
       arvc::color color;
       arvc::axes3d eigenvectors;
       Eigen::Vector3f eigenvalues;
+      vector<Eigen::Vector3f> polygon;
 
 
-  };
+  }; */
 
 
-  class viewer {
+#include <arvc_viewer.hpp>
+  /* class viewer {
     private:
       pcl::visualization::PCLVisualizer::Ptr view;
       int cloud_count;
@@ -1675,11 +1714,14 @@ namespace arvc
 
     }
 
+    void addPolygon(const vector<eigen){
+
+    }
 
     void show(){
       while(!this->view->wasStopped())
         this->view->spinOnce(100);
     }
 
-  };
+  }; */
 }
