@@ -11,20 +11,20 @@ class plane
 public:
 
     plane(){
-    this->coeffs.reset(new pcl::ModelCoefficients);
-    this->inliers.reset(new pcl::PointIndices);
-    this->cloud.reset(new PointCloud);
-    this->original_cloud.reset(new PointCloud);
+        this->coeffs.reset(new pcl::ModelCoefficients);
+        this->inliers.reset(new pcl::PointIndices);
+        this->cloud.reset(new PointCloud);
+        this->original_cloud.reset(new PointCloud);
 
-    this->coeffs->values = {0,0,0,0};
-    this->inliers->indices = {0};
-    this->normal = Eigen::Vector3f(0,0,0);
-    this->polygon = vector<Eigen::Vector3f>(5);
+        this->coeffs->values = {0,0,0,0};
+        this->inliers->indices = {0};
+        this->normal = Eigen::Vector3f(0,0,0);
+        this->polygon = vector<Eigen::Vector3f>(5);
 
-    this->projected_cloud.reset(new PointCloud);
+        this->projected_cloud.reset(new PointCloud);
 
-    this->length = 0;
-    this->width = 0;
+        this->length = 0;
+        this->width = 0;
     };
 
 /*       plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
@@ -41,92 +41,139 @@ public:
     }; */
 
     ~plane(){
-    this->coeffs->values = {0,0,0,0};
-    this->inliers->indices = {0};
+        this->coeffs->values = {0,0,0,0};
+        this->inliers->indices = {0};
     };
 
     friend std::ostream& operator<<(std::ostream& os, const arvc::plane& p)
     {
-    os << "Plane parameters: [ " << p.coeffs->values[0] << ", " << p.coeffs->values[1] << ", " << p.coeffs->values[2] << ", " << p.coeffs->values[3] << " ]" << endl;
-    os << "Plane inliers: " << p.inliers->indices.size() << endl;
 
-    return os;
+        os << "Parameters: [ " << p.coeffs->values[0] << ", " << p.coeffs->values[1] << ", " << p.coeffs->values[2] << ", " << p.coeffs->values[3] << " ]" << endl;
+        os << "Normal: [ " << p.normal.x() << ", " << p.normal.y() << ", " << p.normal.z() << " ]" << endl;
+        os << "Centroid: [ " << p.centroid.x() << ", " << p.centroid.y() << ", " << p.centroid.z() << " ]" << endl;
+        os << "Length: " << p.length << endl;
+        os << "Width: " << p.width << endl;
+        os << "Transform: " << endl << p.tf.matrix() << endl;
+        os << "Eigenvalues: [ " << p.eigenvalues.x() << ", " << p.eigenvalues.y() << ", " << p.eigenvalues.z() << " ]" << endl;
+        os << "Eigenvectors: " << endl << p.eigenvectors << endl;
+        os << "Color: " << p.color << endl;
+        return os;
     }
 
-    void setPlane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices, PointCloud::Ptr _cloud_in){
-    *this->coeffs = *_coeffs;
-    *this->inliers = *_indices;
-    *this->original_cloud = *_cloud_in;
-    this->getNormal();
-    this->getCloud();
-    this->getEigenVectors();
-    this->getEigenValues();
-    this->getCentroid();
-    this->getTransform();  
-    this->getPolygon();
-    this->color.random();
+    void setPlane(const pcl::ModelCoefficientsPtr _coeffs, const pcl::PointIndicesPtr& _indices, const PointCloud::Ptr& _cloud_in){
+        *this->coeffs = *_coeffs;
+        *this->inliers = *_indices;
+        *this->original_cloud = *_cloud_in;
+        this->getNormal();
+        this->getCloud();
+        this->getEigenVectors();
+        this->getEigenValues();
+        this->getCentroid();
+        this->getTransform();  
+        this->getPolygon();
+        this->color.random();
     };
 
-    PointCloud::Ptr getCloud(){
-    pcl::ExtractIndices<PointT> extract;
-    
-    extract.setInputCloud(this->original_cloud);
-    extract.setIndices(this->inliers);
-    extract.setNegative(false);
-    extract.filter(*this->cloud);
+    void setPlane(const pcl::ModelCoefficientsPtr _coeffs, const pcl::PointIndicesPtr& _indices, const PointCloud::Ptr& _cloud_in, const arvc::axes3d& _search_directions){
+        *this->coeffs = *_coeffs;
+        *this->inliers = *_indices;
+        *this->original_cloud = *_cloud_in;
+        this->getNormal();
+        this->getCloud();
+        this->setEigenVectors(_search_directions);
+        this->getEigenValues();
+        this->getCentroid();
+        this->getTransform();  
+        this->getPolygon();
+        this->color.random();
+    };
 
-    return this->cloud;
+/*     void setPlane(Eigen::Vector3f _normal, pcl::PointIndicesPtr _indices, PointCloud::Ptr _cloud_in){
+        this->coeffs->values = {_normal.x(), _normal.y(), _normal.z(), 0.0};
+        *this->inliers = *_indices;
+        *this->original_cloud = *_cloud_in;
+        this->getCloud();
+        this->getEigenVectors();
+        this->getEigenValues();
+        this->getCentroid();
+        this->coeffs->values[3] = this->centroid.norm();
+        this->getTransform();  
+        this->getPolygon();
+        this->color.random();
+    }; */
+
+    PointCloud::Ptr getCloud(){
+        pcl::ExtractIndices<PointT> extract;
+        
+        extract.setInputCloud(this->original_cloud);
+        extract.setIndices(this->inliers);
+        extract.setNegative(false);
+        extract.filter(*this->cloud);
+
+        return this->cloud;
     };
     
     Eigen::Vector3f getNormal(){
-    this->normal = Eigen::Vector3f(this->coeffs->values[0], this->coeffs->values[1], this->coeffs->values[2]);
-    return normal;
+        this->normal = Eigen::Vector3f(this->coeffs->values[0], this->coeffs->values[1], this->coeffs->values[2]);
+        return normal;
     }
 
     void getEigenVectors(){
-    this->eigenvectors = arvc::compute_eigenvectors3D(this->cloud, false);
+        this->eigenvectors = arvc::compute_eigenvectors3D(this->cloud, false);
+    }
+
+    void setEigenVectors(arvc::axes3d _search_directions){
+        this->eigenvectors.z = this->normal;
+        this->eigenvectors.x = _search_directions.y; //TODO: CAMBIAR ESTO PARA ENCONTRAR CUAL ES LA DIRECCIÓN PERPENDICULAR A LA NORMAL CORRECTA
+        this->eigenvectors.y = _search_directions.z;
     }
 
     void getEigenValues(){
-    this->eigenvalues = arvc::compute_eigenvalues3D(this->cloud);
+        this->eigenvalues = arvc::compute_eigenvalues3D(this->cloud);
     }
 
     void projectOnPlane(){
 
-    pcl::ProjectInliers<PointT> proj;
-    proj.setModelType(pcl::SACMODEL_PLANE);
-    proj.setInputCloud(this->cloud);
-    proj.setModelCoefficients(this->coeffs);
-    proj.filter(*this->projected_cloud);
-    }
+        pcl::ProjectInliers<PointT> proj;
+        proj.setModelType(pcl::SACMODEL_PLANE);
+        proj.setInputCloud(this->cloud);
+        proj.setModelCoefficients(this->coeffs);
+        proj.filter(*this->projected_cloud);
+        }
 
     void getCentroid(){
-    pcl::compute3DCentroid(*this->cloud, this->centroid);
+        pcl::compute3DCentroid(*this->cloud, this->centroid);
     }
 
 
     void getPolygon(){
-    PointCloud::Ptr relative_cloud(new PointCloud);
+        PointCloud::Ptr relative_cloud(new PointCloud);
 
-    this->projectOnPlane();
-    pcl::transformPointCloud(*this->projected_cloud, *relative_cloud, this->tf.inverse());
+        this->projectOnPlane();
+        pcl::transformPointCloud(*this->projected_cloud, *relative_cloud, this->tf.inverse());
 
-    PointT max_point;
-    PointT min_point;
+        PointT max_point;
+        PointT min_point;
 
-    pcl::getMinMax3D(*relative_cloud, min_point, max_point);
+        pcl::getMinMax3D(*relative_cloud, min_point, max_point);
 
-    this->polygon[0] = Eigen::Vector3f(min_point.x, min_point.y, 0.0);
-    this->polygon[1] = Eigen::Vector3f(min_point.x, max_point.y, 0.0);
-    this->polygon[2] = Eigen::Vector3f(max_point.x, max_point.y, 0.0);
-    this->polygon[3] = Eigen::Vector3f(max_point.x, min_point.y, 0.0);
-    this->polygon[4] = this->polygon[0];
+        this->polygon[0] = Eigen::Vector3f(min_point.x, min_point.y, 0.0);
+        this->polygon[1] = Eigen::Vector3f(min_point.x, max_point.y, 0.0);
+        this->polygon[2] = Eigen::Vector3f(max_point.x, max_point.y, 0.0);
+        this->polygon[3] = Eigen::Vector3f(max_point.x, min_point.y, 0.0);
+        this->polygon[4] = this->polygon[0];
 
-    this->length = abs(this->polygon[1].x() - this->polygon[2].x()); 
-    this->width = abs(this->polygon[0].y() - this->polygon[1].y());
+        this->length = abs(this->polygon[1].x() - this->polygon[2].x()); 
+        this->width = abs(this->polygon[0].y() - this->polygon[1].y());
 
-    for (int i = 0; i < this->polygon.size(); i++)
-        this->polygon[i] = this->tf * this->polygon[i];
+        if (this->length < this->width){
+            this->length = abs(this->polygon[0].y() - this->polygon[1].y());
+            this->width = abs(this->polygon[1].x() - this->polygon[2].x());
+        }
+
+
+        for (int i = 0; i < this->polygon.size(); i++)
+            this->polygon[i] = this->tf * this->polygon[i];
     }
 
 

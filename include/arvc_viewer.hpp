@@ -22,11 +22,11 @@
 class viewer {
 
 private:
-    pcl::visualization::PCLVisualizer::Ptr view;
     int cloud_count;
 
 public:
     int v1,v2,v3,v4;
+    pcl::visualization::PCLVisualizer::Ptr view;
     
     viewer(){
     this->view.reset(new pcl::visualization::PCLVisualizer("ARVC_VIEWER"));
@@ -72,6 +72,7 @@ void addOrigin(const int& _viewport= 0)
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere"+to_string(_viewport), _viewport);
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "sphere"+to_string(_viewport), _viewport);
     this->view->addText3D("origin", origin_point, 0.02, 1.0, 1.0, 1.0, "origin_text"+to_string(_viewport), _viewport);
+    this->cloud_count++;
 }
 
 
@@ -79,6 +80,8 @@ void addCube(const float& _range){
     this->view->addCube(-_range, _range, -_range, _range, -_range, _range, 1.0, 1.0, 0.0, "cube");
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube");
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "cube");
+    this->cloud_count++;
+
 }
 
 
@@ -86,6 +89,8 @@ void addCube(const pcl::PointXYZ& _min, const pcl::PointXYZ& _max ){
     this->view->addCube(_min.x, _max.x, _min.y, _max.y, _min.z, _max.z, 1.0, 1.0, 0.0, "cube");
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "cube");
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "cube");
+    this->cloud_count++;
+
 }
 
 
@@ -95,6 +100,7 @@ void addCoordinateSystem(const Eigen::Affine3f& tf, const int& _viewport=0){
     pcl::PointXYZ relative_origin(tf.translation().x(), tf.translation().y(), tf.translation().z());
 
     this->view->addText3D("relative", relative_origin, 0.02, 1.0, 1.0, 1.0, "relative_text"+to_string(_viewport), _viewport);
+    this->cloud_count++;
 
 }
 
@@ -131,9 +137,10 @@ void addEigenVectors(const Eigen::Vector3f& _origin, const arvc::axes3d& _axis, 
     pcl::PointXYZ target_y(_axis.y.x() + _origin.x(), _axis.y.y() + _origin.y(), _axis.y.z() + _origin.z());
     pcl::PointXYZ target_z(_axis.z.x() + _origin.x(), _axis.z.y() + _origin.y(), _axis.z.z() + _origin.z());
 
-    this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_x, origin, 1.0, 0.0, 0.0, false, "eigenvector_x", _viewport);
-    this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_y, origin, 0.0, 1.0, 0.0, false, "eigenvector_y", _viewport);
-    this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_z, origin, 0.0, 0.0, 1.0, false, "eigenvector_z", _viewport);
+    this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_x, origin, 1.0, 0.0, 0.0, false, "eigenvector_x"+to_string(this->cloud_count), _viewport);
+    this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_y, origin, 0.0, 1.0, 0.0, false, "eigenvector_y"+to_string(this->cloud_count), _viewport);
+    this->view->addArrow<pcl::PointXYZ, pcl::PointXYZ>(target_z, origin, 0.0, 0.0, 1.0, false, "eigenvector_z"+to_string(this->cloud_count), _viewport);
+    this->cloud_count++;
 
 }
 
@@ -151,6 +158,17 @@ void addPolygon(const vector<Eigen::Vector3f>& _polygon, arvc::color _color = ar
     _color.normalized();
     this->view->addPolygon<pcl::PointXYZ>(polygon_cloud, _color.r, _color.g, _color.b, "polygon"+to_string(this->cloud_count));
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 5, "polygon"+to_string(this->cloud_count));
+    this->cloud_count++;
+
+}
+
+void addPlane(const arvc::plane& _plane, arvc::color _color = arvc::color(255,255,255), const int& _viewport=0){
+
+    cout << "Plane: " << _plane.coeffs->values[0] << " " << _plane.coeffs->values[1] << " " << _plane.coeffs->values[2] << " " << _plane.coeffs->values[3] << endl;
+    this->view->addPlane(*_plane.coeffs, _plane.centroid.x(), _plane.centroid.y(), _plane.centroid.z(), "plane_"+to_string(this->cloud_count), _viewport);
+    this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, _color.r / 255, _color.g / 255, _color.b / 255, "plane_"+to_string(this->cloud_count), _viewport);
+    this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.5, "plane_"+to_string(this->cloud_count), _viewport);
+    this->cloud_count++;
 
 }
 

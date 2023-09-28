@@ -17,7 +17,7 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const color& c)
     {
-    os << "Color: [ " << c.r << ", " << c.g << ", " << c.b << " ]" << endl;
+    os << "[ " << c.r << ", " << c.g << ", " << c.b << " ]" << endl;
     return os;
     }
 
