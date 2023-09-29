@@ -22,6 +22,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/filter_indices.h>
 #include <pcl/filters/project_inliers.h>
+#include <pcl/filters/random_sample.h>
 
 
 #include <pcl/sample_consensus/method_types.h>
@@ -1330,20 +1331,59 @@ namespace arvc
     return cluster_indices;
   }
 
-  /**
-   * @brief Returns a vector of duplicated values in other vector
-   * 
-  */
-  vector<int> get_duplicates(vector<int> _vector){
-    vector<int> duplicates;
-    std::sort(_vector.begin(), _vector.end());
-    vector<int> distinct(_vector.begin(), _vector.end());
+void print_vector(vector<int> _vector)
+{
+  cout << "[ ";
+  for (auto &i : _vector)
+  {
+    std::cout << i << ' ';
+  }
+  std::cout << " ]" << std::endl;
+}
 
-    std::set_difference(_vector.begin(), _vector.end(), distinct.begin(), distinct.end(), std::inserter(duplicates, duplicates.end()));
+vector<int> get_duplicates(vector<int> _vector)
+{
+
+  vector<int>::iterator it;
+  vector<int> duplicates;
+
+  sort(_vector.begin(), _vector.end());
+  it = adjacent_find(_vector.begin(), _vector.end());
+
+  // GET DUPLICATES AS A VECTOR
+  while (it != _vector.end())
+  {
+    duplicates.push_back(*it);
+    it = adjacent_find(++it, _vector.end());
+  } 
+
+  // REMOVE DUPLICATES INSIDE THE DUPLICATE VALUES VECTOR
+  it = unique(duplicates.begin(), duplicates.end());
+  duplicates.resize(distance(duplicates.begin(), it));
+  
+  return duplicates;
+}
+
+  pcl::Indices get_cloud_indices(const PointCloud::Ptr &_cloud_in){
+    pcl::Indices indices;
+    indices.resize(_cloud_in->size());
+    iota(indices.begin(), indices.end(), 0);
     
-    return duplicates;
+    return indices;
   }
 
+  PointCloud::Ptr random_sample(const PointCloud::Ptr& _cloud_in, const float& _sample_ratio){
+    
+    pcl::RandomSample<PointT> rs;
+    PointCloud::Ptr _cloud_out (new PointCloud);
+
+    rs.setInputCloud(_cloud_in);
+    rs.setSample(_cloud_in->size() * _sample_ratio);
+    rs.setSeed(rand());
+    rs.filter(*_cloud_out);
+
+    return _cloud_out;
+  }
 
 #include <arvc_axes3d.hpp>
   /* class axes3d
