@@ -416,6 +416,91 @@ public:
     }
 
 
+    void draw_search_directions(const pcl::visualization::PCLVisualizer::Ptr& _viewer, const int& _viewport=0)
+    {
+        pcl::PointXYZ origin(0,0,0);
+
+        pcl::PointXYZ x_vector(this->second_direction[0], this->second_direction[1], this->second_direction[2]);
+        pcl::PointXYZ y_vector(this->third_direction[0], this->third_direction[1], this->third_direction[2]);
+        pcl::PointXYZ z_vector(this->first_direction[0], this->first_direction[1], this->first_direction[2]);
+
+        _viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(x_vector, origin, 1.0, 0.0, 0.0, false, "x_direction", _viewport);
+        _viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(y_vector, origin, 0.0, 1.0, 0.0, false, "y_direction", _viewport);
+        _viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(z_vector, origin, 0.0, 0.0, 1.0, false, "z_direction", _viewport);
+
+    }
+
+
+    bool validate_plane(const arvc::plane& _plane){
+
+        // As it has been established that all clusters must be valid, this statement invalidates many valid clusters.
+        /* if (_plane.inliers->indices.size() < 200)
+            return false; */
+
+        if (_plane.length < this->length_threshold
+         && _plane.width < this->width_threshold
+         && _plane.length > min_length
+         && _plane.width > min_width)
+         {
+            cout << GREEN << " + Plane " << this->counter <<  " found." << RESET << endl;
+            return true;
+         }
+        else
+        {
+            // cout << RED << " + Plane invalid" << YELLOW << endl;
+            return false;
+        }
+    }
+
+
+    vector<arvc::plane> 
+    get_euclidean_clusters(arvc::plane& _plane){
+
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+        tree->setInputCloud (_plane.original_cloud);
+
+        std::vector<pcl::PointIndices> cluster_indices;
+
+        vector<arvc::plane> plane_clusters;
+
+        pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+        ec.setClusterTolerance (0.025); // 2cm
+        ec.setMinClusterSize (100);
+        _plane.getCloud();
+        ec.setMaxClusterSize (_plane.cloud->points.size()+1);
+        ec.setSearchMethod (tree);
+        ec.setInputCloud (_plane.original_cloud);
+        ec.setIndices(_plane.inliers);
+        ec.extract(cluster_indices);
+
+        if (cluster_indices.size() > 0)
+        {
+            // arvc::viewer tmp_viewer;
+            // tmp_viewer.addCloud(_plane.cloud);
+
+            for (pcl::PointIndices cluster : cluster_indices)
+            {
+                arvc::plane tmp_plane;
+                pcl::PointIndicesPtr indices_ptr(new pcl::PointIndices);
+
+                *indices_ptr = cluster;
+
+                if (!this->initial_plane_found)
+                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.original_cloud);
+                else
+                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.original_cloud, this->search_directions);
+
+                plane_clusters.push_back(tmp_plane);
+                // tmp_viewer.addCloud(tmp_plane.cloud, tmp_plane.color);
+            }
+            // tmp_viewer.show();
+        }
+        else
+            plane_clusters.resize(0);
+
+        return plane_clusters;
+    }
+
 /*     void view_result()
     {
         if (fs::exists("camera.txt"))
@@ -532,21 +617,6 @@ public:
     } */
 
 
-    void draw_search_directions(const pcl::visualization::PCLVisualizer::Ptr& _viewer, const int& _viewport=0)
-    {
-        pcl::PointXYZ origin(0,0,0);
-
-        pcl::PointXYZ x_vector(this->second_direction[0], this->second_direction[1], this->second_direction[2]);
-        pcl::PointXYZ y_vector(this->third_direction[0], this->third_direction[1], this->third_direction[2]);
-        pcl::PointXYZ z_vector(this->first_direction[0], this->first_direction[1], this->first_direction[2]);
-
-        _viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(x_vector, origin, 1.0, 0.0, 0.0, false, "x_direction", _viewport);
-        _viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(y_vector, origin, 0.0, 1.0, 0.0, false, "y_direction", _viewport);
-        _viewer->addArrow<pcl::PointXYZ, pcl::PointXYZ>(z_vector, origin, 0.0, 0.0, 1.0, false, "z_direction", _viewport);
-
-    }
-
-
 /*     void add_plane_eigenvectors(const arvc::plane& _plane)
     {
         arvc::axes3d axis3D = arvc::compute_eigenvectors3D(_plane.cloud);
@@ -560,88 +630,17 @@ public:
     } */
 
 
-    bool validate_plane(const arvc::plane& _plane){
-
-        // As it has been established that all clusters must be valid, this statement invalidates many valid clusters.
-        /* if (_plane.inliers->indices.size() < 200)
-            return false; */
-
-        if (_plane.length < this->length_threshold
-         && _plane.width < this->width_threshold
-         && _plane.length > min_length
-         && _plane.width > min_width)
-         {
-            cout << GREEN << " + Plane " << this->counter <<  " found." << RESET << endl;
-            return true;
-         }
-        else
-        {
-            // cout << RED << " + Plane invalid" << YELLOW << endl;
-            return false;
-        }
-    }
-
-
-    vector<arvc::plane> get_euclidean_clusters(arvc::plane& _plane){
-
-        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-        tree->setInputCloud (_plane.original_cloud);
-
-        std::vector<pcl::PointIndices> cluster_indices;
-
-        vector<arvc::plane> plane_clusters;
-
-        pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance (0.025); // 2cm
-        ec.setMinClusterSize (100);
-        _plane.getCloud();
-        ec.setMaxClusterSize (_plane.cloud->points.size()+1);
-        ec.setSearchMethod (tree);
-        ec.setInputCloud (_plane.original_cloud);
-        ec.setIndices(_plane.inliers);
-        ec.extract(cluster_indices);
-
-        if (cluster_indices.size() > 0)
-        {
-            // arvc::viewer tmp_viewer;
-            // tmp_viewer.addCloud(_plane.cloud);
-
-            for (pcl::PointIndices cluster : cluster_indices)
-            {
-                arvc::plane tmp_plane;
-                pcl::PointIndicesPtr indices_ptr(new pcl::PointIndices);
-
-                *indices_ptr = cluster;
-
-                if (!this->initial_plane_found)
-                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.original_cloud);
-                else
-                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.original_cloud, this->search_directions);
-
-                plane_clusters.push_back(tmp_plane);
-                // tmp_viewer.addCloud(tmp_plane.cloud, tmp_plane.color);
-            }
-            // tmp_viewer.show();
-        }
-        else
-            plane_clusters.resize(0);
-
-        return plane_clusters;
-    }
-
-
-
-
-
-
+    // -----------------------------------------------------
+    //  NEW SEGMENTATION FUNCTIONS
+    // -----------------------------------------------------
 
     void remove_plane_intersection_indices(){
             
         pcl::PointIndicesPtr cat_indices(new pcl::PointIndices);
 
+        cout << "Cat plane indices" << endl;
         for (arvc::plane plane : this->direction_planes)
             cat_indices->indices.insert(cat_indices->indices.end(), plane.inliers->indices.begin(), plane.inliers->indices.end());
-
 
         pcl::PointIndicesPtr intersection_indices(new pcl::PointIndices);
         intersection_indices->indices = arvc::get_duplicates(cat_indices->indices);
@@ -662,22 +661,20 @@ public:
 
     void get_all_direction_planes(){
         cout << YELLOW << "\n- DETECTING DIRECTION X -------------------------------" << RESET << endl;
-        this->compute_direction_planes(this->search_directions.x);
+        this->get_planes_in_direction(this->search_directions.x);
         cout << YELLOW << "\n- DETECTING DIRECTION Y -------------------------------" << RESET << endl;
-        this->compute_direction_planes(this->search_directions.y);
+        this->get_planes_in_direction(this->search_directions.y);
         cout << YELLOW << "\n- DETECTING DIRECTION Z -------------------------------" << RESET << endl;
-        this->compute_direction_planes(this->search_directions.z);
+        this->get_planes_in_direction(this->search_directions.z);
     }
 
 
-    void compute_direction_planes(const Eigen::Vector3f& _direction){
+    void get_planes_in_direction(const Eigen::Vector3f& _direction){
 
         pcl::SACSegmentation<PointT> ransac;
         arvc::plane plane;
         vector<arvc::plane> plane_clusters;
 
-        pcl::PointIndicesPtr _remain_indices(new pcl::PointIndices);
-        *_remain_indices = *this->remain_indices;
         pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::copyPointCloud(*this->cloud_in_xyz, *tmp_cloud);
 
@@ -690,17 +687,15 @@ public:
         ransac.setAxis(_direction.normalized());
         ransac.setEpsAngle (pcl::deg2rad (5.0));
 
-
         while(true){
             ransac.setInputCloud(tmp_cloud);
             // ransac.setIndices(_remain_indices);
             ransac.segment(*plane.inliers, *plane.coeffs);
 
-            cout << "Initial Cloud size: " << tmp_cloud->points.size() << endl;
-
-            if(plane.inliers->indices.size() > 1000){
-                plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
+            if(plane.inliers->indices.size() > 2000){
+                plane.setPlane(plane.coeffs, plane.inliers, tmp_cloud);
                 this->direction_planes.push_back(plane);
+                cout << "Plane found: " << plane.inliers->indices.size() << endl;
                 
                 pcl::ExtractIndices<pcl::PointXYZ> extract;
                 pcl::Indices tmp_idx;
@@ -708,18 +703,12 @@ public:
                 extract.setIndices(plane.inliers);
                 extract.setNegative(true);
                 extract.filter(*tmp_cloud);
-
-                // _remain_indices->indices = tmp_idx;
-
-                cout << RED << "Remain cloud: " << tmp_cloud->points.size() << RESET << endl;
-
             }
             else
                 break;
 
         }
     }
-
 
 
 
@@ -785,9 +774,6 @@ public:
     private:
     pcl::PointIndicesPtr remain_indices;
     pcl::search::KdTree<PointT>::Ptr tree;
-        // pcl::visualization::PCLVisualizer::Ptr viewer;
-        // int v1;
-        // int v2;
     
     public:
     // PUBLIC ATTRIBUTES
@@ -860,6 +846,26 @@ int main(int argc, char const *argv[])
     // AÑADO NUBE INICIAL
 
     arvc::viewer view;
+
+    td.cloud_in_xyz = arvc::random_sample(td.cloud_in_xyz, 0.5);
+    view.addCloud(td.cloud_in_xyz);
+    view.show();
+
+    td.get_all_direction_planes();
+    td.remove_plane_intersection_indices();
+
+    for (arvc::plane plane : td.direction_planes)
+    {
+        view.addCloud(plane.cloud, plane.color);
+        // view.addEigenVectors(plane.centroid.head<3>(), plane.eigenvectors);
+        // view.addPolygon(plane.polygon, plane.color);
+    }
+
+    // view.addCloud(td.cloud_in_xyz);
+
+    view.addOrigin();
+    view.show();
+
     // td.draw_search_directions(view.view);
 
     // for (const arvc::plane& _plane : td.init_plane_clusters)
@@ -869,12 +875,9 @@ int main(int argc, char const *argv[])
     //     view.addPolygon(_plane.polygon, _plane.color);
     // }
     
+
+
     // td.detect_perpendicular_plane(td.search_directions.x);
-
-    td.get_all_direction_planes();
-    td.remove_plane_intersection_indices();
-
-
     // for (const arvc::plane& _plane : td.detected_planes)
     // {
     //     // cout << "TMP PLANE: " << endl;
@@ -886,10 +889,8 @@ int main(int argc, char const *argv[])
     // }
 
     // td.remove_detected_planes();
-    view.addCloud(td.cloud_in_xyz);
 
-    view.addOrigin();
-    view.show();
+
 
 /*    view.addCoordinateSystem(tf, view.v1);   
 
