@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <chrono>
 #include <numeric>
+#include <vector>
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -1289,13 +1290,13 @@ namespace arvc
   }
   
   void
-  remove_indices_from_cloud(PointCloud::Ptr &_cloud_in, pcl::PointIndicesPtr &_indices)
+  remove_indices_from_cloud(PointCloud::Ptr &_cloud_in, pcl::PointIndicesPtr &_indices, bool _negative = true)
   {
     pcl::ExtractIndices<pcl::PointXYZ> extract;
     
     extract.setInputCloud(_cloud_in);
     extract.setIndices(_indices);
-    extract.setNegative(true);
+    extract.setNegative(_negative);
     extract.filter(*_cloud_in);
   }
 
@@ -1328,6 +1329,21 @@ namespace arvc
 
     return cluster_indices;
   }
+
+  /**
+   * @brief Returns a vector of duplicated values in other vector
+   * 
+  */
+  vector<int> get_duplicates(vector<int> _vector){
+    vector<int> duplicates;
+    std::sort(_vector.begin(), _vector.end());
+    vector<int> distinct(_vector.begin(), _vector.end());
+
+    std::set_difference(_vector.begin(), _vector.end(), distinct.begin(), distinct.end(), std::inserter(duplicates, duplicates.end()));
+    
+    return duplicates;
+  }
+
 
 #include <arvc_axes3d.hpp>
   /* class axes3d

@@ -27,6 +27,108 @@ public:
         this->width = 0;
     };
 
+    // copy constructor
+    plane(const plane& p)
+    {
+        this->coeffs.reset(new pcl::ModelCoefficients);
+        this->inliers.reset(new pcl::PointIndices);
+        this->cloud.reset(new PointCloud);
+        this->original_cloud.reset(new PointCloud);
+
+        *this->coeffs = *p.coeffs;
+        *this->inliers = *p.inliers;
+        *this->cloud = *p.cloud;
+        *this->original_cloud = *p.original_cloud;
+
+        this->normal = p.normal;
+        this->centroid = p.centroid;
+        this->tf = p.tf;
+        this->eigenvectors = p.eigenvectors;
+        this->eigenvalues = p.eigenvalues;
+        this->polygon = p.polygon;
+        this->length = p.length;
+        this->width = p.width;
+        this->color = p.color;
+    };
+
+
+    // move constructor
+    plane(plane&& p)
+    {
+        this->coeffs.reset(new pcl::ModelCoefficients);
+        this->inliers.reset(new pcl::PointIndices);
+        this->cloud.reset(new PointCloud);
+        this->original_cloud.reset(new PointCloud);
+
+        *this->coeffs = *p.coeffs;
+        *this->inliers = *p.inliers;
+        *this->cloud = *p.cloud;
+        *this->original_cloud = *p.original_cloud;
+
+        this->normal = p.normal;
+        this->centroid = p.centroid;
+        this->tf = p.tf;
+        this->eigenvectors = p.eigenvectors;
+        this->eigenvalues = p.eigenvalues;
+        this->polygon = p.polygon;
+        this->length = p.length;
+        this->width = p.width;
+        this->color = p.color;
+    };
+
+
+    // copy assignment
+    plane& operator=(const plane& p)
+    {
+        this->coeffs.reset(new pcl::ModelCoefficients);
+        this->inliers.reset(new pcl::PointIndices);
+        this->cloud.reset(new PointCloud);
+        this->original_cloud.reset(new PointCloud);
+
+        *this->coeffs = *p.coeffs;
+        *this->inliers = *p.inliers;
+        *this->cloud = *p.cloud;
+        *this->original_cloud = *p.original_cloud;
+
+        this->normal = p.normal;
+        this->centroid = p.centroid;
+        this->tf = p.tf;
+        this->eigenvectors = p.eigenvectors;
+        this->eigenvalues = p.eigenvalues;
+        this->polygon = p.polygon;
+        this->length = p.length;
+        this->width = p.width;
+        this->color = p.color;
+
+        return *this;
+    };
+
+    // move assignment
+    plane& operator=(plane&& p)
+    {
+        this->coeffs.reset(new pcl::ModelCoefficients);
+        this->inliers.reset(new pcl::PointIndices);
+        this->cloud.reset(new PointCloud);
+        this->original_cloud.reset(new PointCloud);
+
+        *this->coeffs = *p.coeffs;
+        *this->inliers = *p.inliers;
+        *this->cloud = *p.cloud;
+        *this->original_cloud = *p.original_cloud;
+
+        this->normal = p.normal;
+        this->centroid = p.centroid;
+        this->tf = p.tf;
+        this->eigenvectors = p.eigenvectors;
+        this->eigenvalues = p.eigenvalues;
+        this->polygon = p.polygon;
+        this->length = p.length;
+        this->width = p.width;
+        this->color = p.color;
+
+        return *this;
+    };
+
 /*       plane(pcl::ModelCoefficientsPtr _coeffs, pcl::PointIndicesPtr _indices)
     {
     this->coeffs.reset(new pcl::ModelCoefficients);
@@ -80,9 +182,9 @@ public:
         *this->original_cloud = *_cloud_in;
         this->getNormal();
         this->getCloud();
-        this->setEigenVectors(_search_directions);
-        this->getEigenValues();
         this->getCentroid();
+        this->compute_eigenDecomposition(true);
+        this->forceEigenVectors(_search_directions);
         this->getTransform();  
         this->getPolygon();
         this->color.random();
@@ -112,7 +214,7 @@ public:
 
         return this->cloud;
     };
-    
+  
     Eigen::Vector3f getNormal(){
         this->normal = Eigen::Vector3f(this->coeffs->values[0], this->coeffs->values[1], this->coeffs->values[2]);
         return normal;
@@ -122,8 +224,9 @@ public:
         this->eigenvectors = arvc::compute_eigenvectors3D(this->cloud, false);
     }
 
-    void setEigenVectors(arvc::axes3d _search_directions){
+    void forceEigenVectors(arvc::axes3d _search_directions){
         this->eigenvectors.z = this->normal;
+
         this->eigenvectors.x = _search_directions.y; //TODO: CAMBIAR ESTO PARA ENCONTRAR CUAL ES LA DIRECCIÓN PERPENDICULAR A LA NORMAL CORRECTA
         this->eigenvectors.y = _search_directions.z;
     }
@@ -143,6 +246,27 @@ public:
 
     void getCentroid(){
         pcl::compute3DCentroid(*this->cloud, this->centroid);
+    }
+
+    void compute_eigenDecomposition(const bool& force_ortogonal = false){
+        arvc::axes3d _axes;
+        pcl::compute3DCentroid(*this->cloud, this->centroid);
+        pcl::computeCovarianceMatrixNormalized(*this->cloud, this->centroid, this->covariance);
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(this->covariance, Eigen::ComputeEigenvectors);
+
+        // EIGEN VECTORS
+        Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
+        
+        // Forzar a que el tercer vector sea perpendicular a los anteriores.
+        if (force_ortogonal)
+            eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
+        
+        this->eigenvectors.x = eigDx.col(2).normalized();
+        this->eigenvectors.y = eigDx.col(1).normalized();
+        this->eigenvectors.z = eigDx.col(0).normalized();
+     
+        // EIGEN VALUES
+        this->eigenvalues = eigen_solver.eigenvalues().reverse();
     }
 
 
@@ -167,8 +291,8 @@ public:
         this->width = abs(this->polygon[0].y() - this->polygon[1].y());
 
         if (this->length < this->width){
-            this->length = abs(this->polygon[0].y() - this->polygon[1].y());
-            this->width = abs(this->polygon[1].x() - this->polygon[2].x());
+            swap(this->length, this->width);
+            swap(this->eigenvalues.x(), this->eigenvalues.y());
         }
 
 
@@ -192,6 +316,7 @@ public:
     Eigen::Affine3f tf;
     vector<pcl::PointIndices> clusters;
 
+    Eigen::Matrix3f covariance;
     arvc::axes3d eigenvectors;
     Eigen::Vector3f eigenvalues;
     

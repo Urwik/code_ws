@@ -5,6 +5,8 @@
 #include <pcl/pcl_config.h>
 #include <pcl/common/angles.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/segmentation/supervoxel_clustering.h>
+#include <pcl/filters/passthrough.h>
 
 #include <Eigen/Geometry>
 
@@ -28,6 +30,7 @@ public:
     {
         this->cloud_in_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
         this->cloud_search_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+        this->remain_indices.reset(new pcl::PointIndices);
         
         this->range_dist = 1;
         this->RobotBaseToSensorTF = Eigen::Affine3f::Identity();
@@ -45,6 +48,8 @@ public:
     {
         this->cloud_in_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
         this->cloud_search_xyz.reset(new pcl::PointCloud<pcl::PointXYZ>);
+        this->remain_indices.reset(new pcl::PointIndices);
+        this->tree.reset(new pcl::search::KdTree<pcl::PointXYZ>);
 
         this->range_dist = _range_dist;
         this->RobotBaseToSensorTF = Eigen::Affine3f::Identity();
@@ -76,6 +81,12 @@ public:
         pcl::SACSegmentation<PointT> ransac;
         pcl::ModelCoefficientsPtr plane_coeffs (new pcl::ModelCoefficients);
 
+        // CREATE A VECTOR WITH ALL THE INDICES OF THE CLOUD
+        this->remain_indices->indices.resize(this->cloud_in_xyz->points.size());
+        for (int i = 0; i < this->cloud_in_xyz->points.size(); i++)
+            this->remain_indices->indices[i] = i;
+
+        this->tree->setInputCloud(this->cloud_in_xyz);
 
         cout << YELLOW << "\n- DETECTING INITIAL PLANE -------------------------------" << RESET << endl;
         int intento = 0;
@@ -89,7 +100,7 @@ public:
             // TERMINATE FUNCTION IF THE CLOUD IS TOO SMALL
             if (this->cloud_search_xyz->points.size() < initial_size * 0.01)
             {
-                cout << RED << "So small cloud to find an initial plane" << RESET << endl;
+                cout << RED << "Cloud to small to find an initial plane" << RESET << endl;
                 return;
             }
 
@@ -115,7 +126,7 @@ public:
 
                 // DIVIDE UN MULTIPLE CLUSTERS
                 plane_clusters = this->get_euclidean_clusters(this->initial_plane);
-                cout << "Initial plane cloud divided in " << plane_clusters.size() << " clusters" << endl;
+                cout << " - Initial plane cloud divided in " << plane_clusters.size() << " clusters" << endl;
 
                 if( plane_clusters.size() == 0) // if no clusters found, try to validate the complete initial plane
                 { 
@@ -128,12 +139,12 @@ public:
 
                 else if (plane_clusters.size() > 1)
                 {
-                    arvc::viewer tmp_viewer;
+                    // arvc::viewer tmp_viewer;
                     // EVERY CLUSTER MUST BE VALID
                     int clust_count = 0;
                     for(arvc::plane plano : plane_clusters){
                         
-                        tmp_viewer.addCloud(plano.cloud, plano.color);
+                        // tmp_viewer.addCloud(plano.cloud, plano.color);
 
                         if(this->validate_plane(plano))
                         {
@@ -148,18 +159,21 @@ public:
                         }
                         clust_count++;
                     }
-                    tmp_viewer.show( );
+                    // tmp_viewer.show( );
                 }
             }
 
             // GET OUT THE LOOP IF ALL CLUSTERS ARE VALID
             if (all_clusters_valid){
                 this->initial_plane_found = true;
-                cout << GREEN << "+ Initial plane found." << RESET << endl;
+                cout << GREEN << " +++ Initial plane found. Setting search directions +++++" << RESET << endl;
+                cout << YELLOW << "------------------------------------------------------" << RESET << endl;
+                cout << YELLOW << "\n - SEARCHING PLANES IN SEARCH DIRECTIONS -----------\n" << RESET << endl;
+
                 return;
             }
             else
-                cout << YELLOW << "- Initial plane not valid. Trying in next iteration." << RESET << endl;
+                cout << YELLOW << " --- Initial plane not valid. Trying in next iteration." << RESET << endl;
 
             // REMOVE THE INLIERS FROM THE CLOUD UNTIL THE SIZE IS LESS THAN 10% OF THE INITIAL SIZE
             arvc::remove_indices_from_cloud(this->cloud_search_xyz, this->initial_plane.inliers);
@@ -172,7 +186,7 @@ public:
     }
 
 
-    arvc::plane detect_plane(const Eigen::Vector3f& direction){
+/*     arvc::plane detect_plane(const Eigen::Vector3f& direction){
         
         pcl::SACSegmentation<PointT> ransac;
         arvc::plane plane;
@@ -206,40 +220,63 @@ public:
         cout << plane << endl;
 
         return plane;
+    } */
+
+
+    void search_in_direction(const Eigen::Vector3f& _direction){
+        arvc::plane plane;
+        int count=0;
+        arvc::viewer view2("TMP VIEWER");
+
+        while (true)
+        {
+            cout << "Plane " << count << " found" << endl;
+            view2.addCloud(plane.cloud, plane.color);
+            plane = this->detect_perpendicular_plane(_direction);
+
+            if (plane.inliers->indices.size() <= 1000){
+                break;
+            }
+            
+            count++;
+        }
+
+        view2.show();
     }
 
 
     arvc::plane detect_perpendicular_plane(const Eigen::Vector3f& _direction){
         
-        pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
-        tree->setInputCloud(this->cloud_in_xyz);
-
         pcl::SACSegmentation<PointT> ransac;
-        static arvc::plane plane;
+        arvc::plane plane;
         vector<arvc::plane> plane_clusters;
 
         ransac.setInputCloud(this->cloud_in_xyz);
+        ransac.setIndices(this->remain_indices);
         ransac.setOptimizeCoefficients(true);
         ransac.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
         ransac.setMethodType(pcl::SAC_RANSAC);
         ransac.setMaxIterations(1000);
-        ransac.setSamplesMaxDist(0.5, tree); //TODO
+        ransac.setSamplesMaxDist(0.5, this->tree); //TODO
         ransac.setDistanceThreshold(0.02);
         ransac.setAxis(_direction.normalized());
         ransac.setEpsAngle (pcl::deg2rad (5.0));
 
         ransac.segment(*plane.inliers, *plane.coeffs);
-        plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
 
-        cout << GREEN << "\n----------------------------------------" << endl;
-        cout <<"Direction Plane Detected: " << endl;
-        cout << plane << RESET << endl << endl;
+        if(plane.inliers->indices.size() > 0)
+            plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
+        else
+        {
+            cout << "RANSAC can not extract plane" << endl;
+            return plane;
+        }
 
         if(!this->validate_plane(plane))
         {
             // DIVIDE UN MULTIPLE CLUSTERS
             plane_clusters = this->get_euclidean_clusters(plane);
-            cout << "Clusters Detectados por Dirección: " << plane_clusters.size() << endl;
+            // cout << "Clusters Detectados por Dirección: " << plane_clusters.size() << endl;
 
             if( plane_clusters.size() == 0) // if no clusters found, try to validate the complete initial plane
             { 
@@ -250,22 +287,15 @@ public:
             {
                 
                 for(arvc::plane plano : plane_clusters){
-
-                    cout << "Plano length: " << plano.length << endl;
-                    cout << "Plano width: " << plano.width << endl;
-
                     if(this->validate_plane(plano)){
                         this->detected_planes.push_back(plano);
                         this->counter++;
                     }
-                    else
-                        cout << "Plano invalido detectado" << endl;
                 }
             }
         }
 
-        arvc::remove_indices_from_cloud(this->cloud_in_xyz, plane.inliers);
-
+        // this->remove_used_indices(plane.inliers);
         return plane;
     }
 
@@ -307,6 +337,15 @@ public:
         
         return plane;
     } */
+
+
+    void remove_used_indices(const pcl::PointIndicesPtr& _indices){
+
+        auto new_end = std::remove_if(this->remain_indices->indices.begin(), this->remain_indices->indices.end(), [&](int value) {
+        return std::find(_indices->indices.begin(), _indices->indices.end(), value) != _indices->indices.end();});
+
+        this->remain_indices->indices.erase(new_end, this->remain_indices->indices.end());
+    }
 
 
     void get_close_points(){
@@ -362,6 +401,18 @@ public:
         // direction.vector = this->first_direction;
         // direction.color = arvc::color(0,0,255);
         // this->search_directions[2] = direction;
+    }
+
+
+    void remove_detected_planes(){
+
+        pcl::PointIndicesPtr cat_indices(new pcl::PointIndices);
+
+        for (arvc::plane plane : this->detected_planes)
+            cat_indices->indices.insert(cat_indices->indices.end(), plane.inliers->indices.begin(), plane.inliers->indices.end());
+        
+        
+        arvc::remove_indices_from_cloud(this->cloud_in_xyz, cat_indices);
     }
 
 
@@ -517,18 +568,25 @@ public:
 
         if (_plane.length < this->length_threshold
          && _plane.width < this->width_threshold
-         && _plane.length > 0.05
-         && _plane.width > 0.05)
+         && _plane.length > min_length
+         && _plane.width > min_width)
+         {
+            cout << GREEN << " + Plane " << this->counter <<  " found." << RESET << endl;
             return true;
+         }
         else
+        {
+            // cout << RED << " + Plane invalid" << YELLOW << endl;
             return false;
+        }
     }
 
 
-    vector<arvc::plane> get_euclidean_clusters(const arvc::plane& _plane){
+    vector<arvc::plane> get_euclidean_clusters(arvc::plane& _plane){
 
         pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-        tree->setInputCloud (_plane.cloud);
+        tree->setInputCloud (_plane.original_cloud);
+
         std::vector<pcl::PointIndices> cluster_indices;
 
         vector<arvc::plane> plane_clusters;
@@ -536,12 +594,13 @@ public:
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
         ec.setClusterTolerance (0.025); // 2cm
         ec.setMinClusterSize (100);
+        _plane.getCloud();
         ec.setMaxClusterSize (_plane.cloud->points.size()+1);
         ec.setSearchMethod (tree);
-        ec.setInputCloud (_plane.cloud);
+        ec.setInputCloud (_plane.original_cloud);
+        ec.setIndices(_plane.inliers);
         ec.extract(cluster_indices);
 
-        cout << "CLUSTERS DETECTADOS: " << cluster_indices.size() << endl;
         if (cluster_indices.size() > 0)
         {
             // arvc::viewer tmp_viewer;
@@ -555,14 +614,10 @@ public:
                 *indices_ptr = cluster;
 
                 if (!this->initial_plane_found)
-                {   cout << "Aun no se ha encontrado el plano inicial" << endl;
-                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.cloud);
-                }
+                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.original_cloud);
                 else
-                {
-                    cout << "Se establece forzando las direcciones de los autovectores" << endl;
-                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.cloud, this->search_directions);
-                }
+                    tmp_plane.setPlane(_plane.coeffs, indices_ptr, _plane.original_cloud, this->search_directions);
+
                 plane_clusters.push_back(tmp_plane);
                 // tmp_viewer.addCloud(tmp_plane.cloud, tmp_plane.color);
             }
@@ -571,12 +626,165 @@ public:
         else
             plane_clusters.resize(0);
 
-    
         return plane_clusters;
     }
 
 
+
+
+
+
+
+    void remove_plane_intersection_indices(){
+            
+        pcl::PointIndicesPtr cat_indices(new pcl::PointIndices);
+
+        for (arvc::plane plane : this->direction_planes)
+            cat_indices->indices.insert(cat_indices->indices.end(), plane.inliers->indices.begin(), plane.inliers->indices.end());
+
+
+        pcl::PointIndicesPtr intersection_indices(new pcl::PointIndices);
+        intersection_indices->indices = arvc::get_duplicates(cat_indices->indices);
+
+        cout << "Indices a eliminar: " << intersection_indices->indices.size() << endl;
+
+        pcl::ExtractIndices<pcl::PointXYZ> extract;
+        extract.setInputCloud(this->cloud_in_xyz);
+        extract.setIndices(intersection_indices);
+        extract.setNegative(true);
+        // extract.filter(this->remain_indices->indices);
+        extract.filter(*this->cloud_in_xyz);
+
+
+
+    }
+
+
+    void get_all_direction_planes(){
+        cout << YELLOW << "\n- DETECTING DIRECTION X -------------------------------" << RESET << endl;
+        this->compute_direction_planes(this->search_directions.x);
+        cout << YELLOW << "\n- DETECTING DIRECTION Y -------------------------------" << RESET << endl;
+        this->compute_direction_planes(this->search_directions.y);
+        cout << YELLOW << "\n- DETECTING DIRECTION Z -------------------------------" << RESET << endl;
+        this->compute_direction_planes(this->search_directions.z);
+    }
+
+
+    void compute_direction_planes(const Eigen::Vector3f& _direction){
+
+        pcl::SACSegmentation<PointT> ransac;
+        arvc::plane plane;
+        vector<arvc::plane> plane_clusters;
+
+        pcl::PointIndicesPtr _remain_indices(new pcl::PointIndices);
+        *_remain_indices = *this->remain_indices;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::copyPointCloud(*this->cloud_in_xyz, *tmp_cloud);
+
+        ransac.setOptimizeCoefficients(true);
+        ransac.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
+        ransac.setMethodType(pcl::SAC_RANSAC);
+        ransac.setMaxIterations(1000);
+        ransac.setSamplesMaxDist(0.5, this->tree); //TODO
+        ransac.setDistanceThreshold(0.02);
+        ransac.setAxis(_direction.normalized());
+        ransac.setEpsAngle (pcl::deg2rad (5.0));
+
+
+        while(true){
+            ransac.setInputCloud(tmp_cloud);
+            // ransac.setIndices(_remain_indices);
+            ransac.segment(*plane.inliers, *plane.coeffs);
+
+            cout << "Initial Cloud size: " << tmp_cloud->points.size() << endl;
+
+            if(plane.inliers->indices.size() > 1000){
+                plane.setPlane(plane.coeffs, plane.inliers, this->cloud_in_xyz);
+                this->direction_planes.push_back(plane);
+                
+                pcl::ExtractIndices<pcl::PointXYZ> extract;
+                pcl::Indices tmp_idx;
+                extract.setInputCloud(tmp_cloud);
+                extract.setIndices(plane.inliers);
+                extract.setNegative(true);
+                extract.filter(*tmp_cloud);
+
+                // _remain_indices->indices = tmp_idx;
+
+                cout << RED << "Remain cloud: " << tmp_cloud->points.size() << RESET << endl;
+
+            }
+            else
+                break;
+
+        }
+    }
+
+
+
+
+/*     void grow_rectangle(const arvc::plane& _plane, const int& _num_samples){
+
+        pcl::PointIndicesPtr rand_idx(new pcl::PointIndices);
+
+        int max_value = _plane.inliers->indices.size();
+
+        for (size_t i = 0; i < _num_samples; i++)
+        {
+            int random = rand() % max_value;
+            rand_idx->indices.push_back(random);
+        }
+
+        pcl::PointXYZ seed = _plane.cloud->points[rand_idx->indices[0]];
+
+        do
+        {
+            pcl::PointXYZ next_point;
+            next_point.x = seed.x + 1;
+
+            pcl::getPointsInBox(seed,);
+
+        } while ();
+    } */
+
+
+/*   void remove_high_curvature(){
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+
+    // Create the normal estimation class, and pass the input dataset to it
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    ne.setInputCloud (this->cloud_in_xyz);
+    ne.setSearchMethod (this->tree);
+    ne.setRadiusSearch (0.03);
+    ne.compute (*cloud_normals);
+
+    // Remove points of cloud_in_xyz from the curvature value
+    pcl::PointIndicesPtr new_idx (new pcl::PointIndices);
+    pcl::Indices mis_indices;
+
+    pcl::PassThrough<pcl::Normal> pass;
+    
+    pass.setInputCloud (cloud_normals);
+    pass.setFilterFieldName ("curvature");
+    pass.setFilterLimits (0.0, 0.8);
+    // pass.setNegative (true);
+    pass.filter(mis_indices);
+
+    // Remove points of cloud_in_xyz from the curvature value
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    extract.setInputCloud (this->cloud_in_xyz);
+    extract.setIndices (new_idx);
+    // extract.setNegative (true);
+    extract.filter (*this->cloud_in_xyz);
+} */
+
+
+
     private:
+    pcl::PointIndicesPtr remain_indices;
+    pcl::search::KdTree<PointT>::Ptr tree;
         // pcl::visualization::PCLVisualizer::Ptr viewer;
         // int v1;
         // int v2;
@@ -593,10 +801,12 @@ public:
     bool initial_plane_found;
 
     vector<arvc::plane> detected_planes;
+    vector<arvc::plane> direction_planes;
 
     Eigen::Vector3f first_direction;
     Eigen::Vector3f second_direction;
     Eigen::Vector3f third_direction;
+
 
     Eigen::Vector3f normal;
     int counter = 0;
@@ -604,12 +814,18 @@ public:
     arvc::axes3d search_directions;
     float length_threshold;
     float width_threshold;
+    float min_length;
+    float min_width;
 
 };
 
 
 int main(int argc, char const *argv[])
 {
+    // hide all mesages from pcl
+
+    pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
+
     std::cout << setprecision(3) << std::fixed;
     const double RANGE_DIST = 1;
 
@@ -617,6 +833,8 @@ int main(int argc, char const *argv[])
 
     td.length_threshold = 1.0;
     td.width_threshold = 0.25;
+    td.min_length = 0.05;
+    td.min_width = 0.05;
 
     td.RobotBaseToSensorTF.translation() = Eigen::Vector3f(0.1, 0.0, 0.3);
     td.RobotBaseToSensorTF.linear() = Eigen::Quaternionf::Identity().toRotationMatrix();
@@ -642,7 +860,6 @@ int main(int argc, char const *argv[])
     // AÑADO NUBE INICIAL
 
     arvc::viewer view;
-    view.addCloud(td.cloud_in_xyz);
     // td.draw_search_directions(view.view);
 
     // for (const arvc::plane& _plane : td.init_plane_clusters)
@@ -652,23 +869,24 @@ int main(int argc, char const *argv[])
     //     view.addPolygon(_plane.polygon, _plane.color);
     // }
     
+    // td.detect_perpendicular_plane(td.search_directions.x);
 
-    td.detect_perpendicular_plane(td.search_directions.x);
-    // td.detect_perpendicular_plane(td.search_directions.y);
-    // td.detect_perpendicular_plane(td.search_directions.z);
+    td.get_all_direction_planes();
+    td.remove_plane_intersection_indices();
 
-    cout << "\n--------------------------------------------------" << endl;
-    cout << "Num of Detected planes: " << td.detected_planes.size() << endl;
 
-    for (const arvc::plane& _plane : td.detected_planes)
-    {
-        // cout << "TMP PLANE: " << endl;
-        // cout << _plane << endl;
-        view.addCloud(_plane.cloud, _plane.color);
-        view.addEigenVectors(_plane.centroid.head<3>(), _plane.eigenvectors);
-        view.addPolygon(_plane.polygon, _plane.color);
-        // view.addPlane(_plane, _plane.color);
-    }
+    // for (const arvc::plane& _plane : td.detected_planes)
+    // {
+    //     // cout << "TMP PLANE: " << endl;
+    //     // cout << _plane << endl;
+    //     // view.addCloud(_plane.cloud, _plane.color);
+    //     view.addEigenVectors(_plane.centroid.head<3>(), _plane.eigenvectors);
+    //     view.addPolygon(_plane.polygon, _plane.color);
+    //     // view.addPlane(_plane, _plane.color);
+    // }
+
+    // td.remove_detected_planes();
+    view.addCloud(td.cloud_in_xyz);
 
     view.addOrigin();
     view.show();
