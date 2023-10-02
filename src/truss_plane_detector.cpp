@@ -408,9 +408,11 @@ public:
 
         pcl::PointIndicesPtr cat_indices(new pcl::PointIndices);
 
-        for (arvc::plane plane : this->detected_planes)
+        for (arvc::plane plane : this->detected_planes){
             cat_indices->indices.insert(cat_indices->indices.end(), plane.inliers->indices.begin(), plane.inliers->indices.end());
-        
+            
+            cout<< "Plane " << this->counter << " with " << plane.inliers->indices.size() << " points removed" << endl;
+        }
         
         arvc::remove_indices_from_cloud(this->cloud_in_xyz, cat_indices);
     }
@@ -666,6 +668,7 @@ public:
         this->get_planes_in_direction(this->search_directions.y);
         cout << YELLOW << "\n- DETECTING DIRECTION Z -------------------------------" << RESET << endl;
         this->get_planes_in_direction(this->search_directions.z);
+        cout << "GET ALL DIRECTION PLANES " << GREEN << "DONE" << RESET << endl;
     }
 
 
@@ -681,20 +684,22 @@ public:
         ransac.setOptimizeCoefficients(true);
         ransac.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
         ransac.setMethodType(pcl::SAC_RANSAC);
-        ransac.setMaxIterations(1000);
+        ransac.setMaxIterations(2000);
         ransac.setSamplesMaxDist(0.5, this->tree); //TODO
-        ransac.setDistanceThreshold(0.02);
+        ransac.setDistanceThreshold(0.05);
         ransac.setAxis(_direction.normalized());
         ransac.setEpsAngle (pcl::deg2rad (5.0));
 
         while(true){
+
             ransac.setInputCloud(tmp_cloud);
             // ransac.setIndices(_remain_indices);
             ransac.segment(*plane.inliers, *plane.coeffs);
 
-            if(plane.inliers->indices.size() > 2000){
+            if(plane.inliers->indices.size() > 400){
                 plane.setPlane(plane.coeffs, plane.inliers, tmp_cloud);
                 this->direction_planes.push_back(plane);
+                cout << "TMP Cloud size " << tmp_cloud->points.size() << endl;
                 cout << "Plane found: " << plane.inliers->indices.size() << endl;
                 
                 pcl::ExtractIndices<pcl::PointXYZ> extract;
@@ -703,13 +708,31 @@ public:
                 extract.setIndices(plane.inliers);
                 extract.setNegative(true);
                 extract.filter(*tmp_cloud);
+                cout << "Plane removed from tmp cloud" << endl;
             }
             else
+            {
+                cout << RED << "Remaining cloud to small. Stop searching for planes." << endl;
                 break;
-
+            }
         }
+        
+        cout << "Termina la función de busqueda de planos en dirección correctamente" << endl;
     }
 
+
+    void remove_direction_planes(){
+        cout << "Entra a remove direction planes" << endl;
+        pcl::PointIndicesPtr cat_indices(new pcl::PointIndices);
+
+        for (arvc::plane plane : this->direction_planes){
+            cat_indices->indices.insert(cat_indices->indices.end(), plane.inliers->indices.begin(), plane.inliers->indices.end());
+            
+            cout<< "Plane " << this->counter << " with " << plane.inliers->indices.size() << " points removed" << endl;
+        }
+        
+        arvc::remove_indices_from_cloud(this->cloud_in_xyz, cat_indices);
+    }
 
 
 /*     void grow_rectangle(const arvc::plane& _plane, const int& _num_samples){
@@ -847,21 +870,24 @@ int main(int argc, char const *argv[])
 
     arvc::viewer view;
 
-    td.cloud_in_xyz = arvc::random_sample(td.cloud_in_xyz, 0.5);
-    view.addCloud(td.cloud_in_xyz);
-    view.show();
+    // td.cloud_in_xyz = arvc::random_sample(td.cloud_in_xyz, 0.5);
+    // td.cloud_in_xyz = arvc::uniform_sample(td.cloud_in_xyz, 0.5);
+    td.cloud_in_xyz = arvc::voxel_filter(td.cloud_in_xyz, 0.02);
+
 
     td.get_all_direction_planes();
-    td.remove_plane_intersection_indices();
+    // td.remove_plane_intersection_indices();
 
-    for (arvc::plane plane : td.direction_planes)
-    {
-        view.addCloud(plane.cloud, plane.color);
-        // view.addEigenVectors(plane.centroid.head<3>(), plane.eigenvectors);
-        // view.addPolygon(plane.polygon, plane.color);
-    }
+    // for (arvc::plane plane : td.direction_planes)
+    // {
+    //     view.addCloud(plane.cloud, plane.color);
+    //     // view.addEigenVectors(plane.centroid.head<3>(), plane.eigenvectors);
+    //     // view.addPolygon(plane.polygon, plane.color);
+    // }
 
-    // view.addCloud(td.cloud_in_xyz);
+    cout << "GET ALL PLANE DIRECTIONS" << endl;
+    td.remove_direction_planes();
+    view.addCloud(td.cloud_in_xyz, arvc::color(100,100,100));
 
     view.addOrigin();
     view.show();

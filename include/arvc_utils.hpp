@@ -23,6 +23,7 @@
 #include <pcl/filters/filter_indices.h>
 #include <pcl/filters/project_inliers.h>
 #include <pcl/filters/random_sample.h>
+#include <pcl/filters/uniform_sampling.h>
 
 
 #include <pcl/sample_consensus/method_types.h>
@@ -1384,6 +1385,19 @@ vector<int> get_duplicates(vector<int> _vector)
 
     return _cloud_out;
   }
+
+  PointCloud::Ptr uniform_sample(const PointCloud::Ptr& _cloud_in, const float& _grid_size){
+    
+    pcl::UniformSampling<PointT> us;
+    PointCloud::Ptr _cloud_out (new PointCloud);
+
+    us.setInputCloud(_cloud_in);
+    us.setRadiusSearch(0.01);
+    us.filter(*_cloud_out);
+
+    return _cloud_out;
+  }
+
 
 #include <arvc_axes3d.hpp>
   /* class axes3d
