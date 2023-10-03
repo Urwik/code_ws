@@ -172,6 +172,9 @@ void addPlane(const arvc::plane& _plane, arvc::color _color = arvc::color(255,25
 
 }
 
+void close(){
+    this->view->close();
+}
 
 void show(){
     while(!this->view->wasStopped())

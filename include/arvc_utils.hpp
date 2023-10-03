@@ -39,6 +39,8 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
 
+
+
 namespace fs = std::filesystem;
 
 using namespace std;
@@ -54,6 +56,8 @@ typedef pcl::PointCloud<pcl::PointXYZL> PointCloudL;
 #define GREEN   "\033[32m"  
 #define YELLOW  "\033[33m"
 #define BLUE    "\033[34m"
+
+
 
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
@@ -521,6 +525,27 @@ namespace arvc
 
     return plane_coeffs;
   }
+
+  pcl::ModelCoefficientsPtr 
+  compute_planar_ransac (PointCloud::Ptr &_cloud_in, const pcl::PointIndicesPtr& _indices, const bool optimizeCoefs=true,
+              float distThreshold = 0.02, int maxIterations = 1000)
+  {
+    pcl::PointIndices point_indices;
+    pcl::SACSegmentation<PointT> ransac;
+    pcl::ModelCoefficientsPtr plane_coeffs (new pcl::ModelCoefficients);
+
+    ransac.setInputCloud(_cloud_in);
+    ransac.setIndices(_indices);
+    ransac.setOptimizeCoefficients(optimizeCoefs);
+    ransac.setModelType(pcl::SACMODEL_PLANE);
+    ransac.setMethodType(pcl::SAC_RANSAC);
+    ransac.setMaxIterations(maxIterations);
+    ransac.setDistanceThreshold(distThreshold);
+    ransac.segment(point_indices, *plane_coeffs);
+
+    return plane_coeffs;
+  }
+
 
 
   /**
@@ -1342,6 +1367,16 @@ void print_vector(vector<int> _vector)
   std::cout << " ]" << std::endl;
 }
 
+void print_vector(vector<float> _vector)
+{
+  cout << "[ ";
+  for (auto &i : _vector)
+  {
+    std::cout << i << ' ';
+  }
+  std::cout << " ]" << std::endl;
+}
+
 vector<int> get_duplicates(vector<int> _vector)
 {
 
@@ -1373,6 +1408,7 @@ vector<int> get_duplicates(vector<int> _vector)
     return indices;
   }
 
+
   PointCloud::Ptr random_sample(const PointCloud::Ptr& _cloud_in, const float& _sample_ratio){
     
     pcl::RandomSample<PointT> rs;
@@ -1386,6 +1422,7 @@ vector<int> get_duplicates(vector<int> _vector)
     return _cloud_out;
   }
 
+
   PointCloud::Ptr uniform_sample(const PointCloud::Ptr& _cloud_in, const float& _grid_size){
     
     pcl::UniformSampling<PointT> us;
@@ -1398,6 +1435,30 @@ vector<int> get_duplicates(vector<int> _vector)
     return _cloud_out;
   }
 
+
+  pcl::PointIndices::Ptr get_unique(vector<int> _indices){
+    
+    pcl::PointIndices::Ptr _unique_indices (new pcl::PointIndices);
+
+    sort(_indices.begin(), _indices.end());
+    auto it = unique(_indices.begin(), _indices.end());
+    _indices.resize(distance(_indices.begin(), it));
+
+    _unique_indices->indices = _indices;
+  }
+
+  vector<int> cat_vectors(vector<vector> _vectors){
+    vector<int> _cat_vector;
+
+    for (auto _vector : _vectors)
+      _cat_vector.insert(_cat_vector.end(), _vector.begin(), _vector.end());
+
+    return _cat_vector;
+  }
+
+
+
+#include <arvc_console.hpp>
 
 #include <arvc_axes3d.hpp>
   /* class axes3d

@@ -21,10 +21,11 @@ public:
     return os;
     }
 
-    void random(int min = 0, int max = 255){
+    void random(int min = 100, int max = 255){
     this->r = (int) min + (rand() % max);
     this->g = (int) min + (rand() % max);
     this->b = (int) min + (rand() % max);
+
     }
 
     void normalized(){

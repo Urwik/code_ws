@@ -147,6 +147,7 @@ public:
         this->inliers->indices = {0};
     };
 
+
     friend std::ostream& operator<<(std::ostream& os, const arvc::plane& p)
     {
 
@@ -162,6 +163,7 @@ public:
         return os;
     }
 
+
     void setPlane(const pcl::ModelCoefficientsPtr _coeffs, const pcl::PointIndicesPtr& _indices, const PointCloud::Ptr& _cloud_in){
         *this->coeffs = *_coeffs;
         *this->inliers = *_indices;
@@ -175,6 +177,7 @@ public:
         this->getPolygon();
         this->color.random();
     };
+
 
     void setPlane(const pcl::ModelCoefficientsPtr _coeffs, const pcl::PointIndicesPtr& _indices, const PointCloud::Ptr& _cloud_in, const arvc::axes3d& _search_directions){
         *this->coeffs = *_coeffs;
@@ -190,6 +193,7 @@ public:
         this->color.random();
     };
 
+
 /*     void setPlane(Eigen::Vector3f _normal, pcl::PointIndicesPtr _indices, PointCloud::Ptr _cloud_in){
         this->coeffs->values = {_normal.x(), _normal.y(), _normal.z(), 0.0};
         *this->inliers = *_indices;
@@ -204,6 +208,7 @@ public:
         this->color.random();
     }; */
 
+
     PointCloud::Ptr getCloud(){
         pcl::ExtractIndices<PointT> extract;
         
@@ -214,15 +219,18 @@ public:
 
         return this->cloud;
     };
-  
+
+
     Eigen::Vector3f getNormal(){
         this->normal = Eigen::Vector3f(this->coeffs->values[0], this->coeffs->values[1], this->coeffs->values[2]);
         return normal;
     }
 
+
     void getEigenVectors(){
         this->eigenvectors = arvc::compute_eigenvectors3D(this->cloud, false);
     }
+
 
     void forceEigenVectors(arvc::axes3d _search_directions){
         this->eigenvectors.z = this->normal;
@@ -231,9 +239,11 @@ public:
         this->eigenvectors.y = _search_directions.z;
     }
 
+
     void getEigenValues(){
         this->eigenvalues = arvc::compute_eigenvalues3D(this->cloud);
     }
+
 
     void projectOnPlane(){
 
@@ -244,9 +254,11 @@ public:
         proj.filter(*this->projected_cloud);
         }
 
+
     void getCentroid(){
         pcl::compute3DCentroid(*this->cloud, this->centroid);
     }
+
 
     void compute_eigenDecomposition(const bool& force_ortogonal = false){
         arvc::axes3d _axes;
@@ -305,6 +317,7 @@ public:
         this->tf.translation() = this->centroid.head<3>();
         this->tf.linear() = this->eigenvectors.getRotationMatrix();
     }
+
 
     pcl::ModelCoefficientsPtr coeffs;
     pcl::PointIndicesPtr inliers;
