@@ -772,7 +772,7 @@ public:
             _tmp_plane_models.push_back(*_coeffs);
             _tmp_plane_indices.push_back(*_inliers);
 
-            this->plane_models.push_back(*_coeffs);
+            // this->plane_models.push_back(*_coeffs);
             // this->plane_inliers.push_back(*_inliers);
 
             // REMOVE FROM THE SEARCH CLOUD THE ACTUAL PLANE INLIERS
@@ -798,10 +798,10 @@ public:
 
         //  REFINING PLANES
         // _tmp_plane_models = this->check_normal_direction(_tmp_plane_models, _tmp_plane_indices);
-        // _refined_plane_models = this->refine_plane_models(_tmp_plane_models, _direction);
-        // 
-        // for (pcl::ModelCoefficients _coeffs : _refined_plane_models)
-        //    this->plane_models.push_back(_coeffs);
+        _refined_plane_models = this->refine_plane_models(_tmp_plane_models, _direction);
+        
+        for (pcl::ModelCoefficients _coeffs : _refined_plane_models)
+           this->plane_models.push_back(_coeffs);
 
 
     }
@@ -848,8 +848,6 @@ public:
 
             float delta_d;
             delta_d  = abs(_tmp_plane_models[i].values[3] - _tmp_plane_models[i+1].values[3]);
-
-            delta_d = arvc::plane_to_plane_distance(_tmp_plane_models[i], _tmp_plane_models[i+1], _direction);
 
             if (delta_d < this->width_threshold * 0.95){
 
