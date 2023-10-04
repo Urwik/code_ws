@@ -7,7 +7,7 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/segmentation/supervoxel_clustering.h>
 #include <pcl/filters/passthrough.h>
-
+#include <chrono>
 
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
@@ -771,6 +771,8 @@ public:
             // SAVE PLANE PARAMETERS
             _tmp_plane_models.push_back(*_coeffs);
             _tmp_plane_indices.push_back(*_inliers);
+
+            this->plane_models.push_back(*_coeffs);
             // this->plane_inliers.push_back(*_inliers);
 
             // REMOVE FROM THE SEARCH CLOUD THE ACTUAL PLANE INLIERS
@@ -785,17 +787,23 @@ public:
             extract.setNegative(true);
             extract.filter(*this->cloud_search_xyz);
 
-            view.addCloud(tmp_cloud, _color);
+            arvc::color tmp_color;
+            tmp_color.random();
+            view.addCloud(tmp_cloud, tmp_color);
 
             _count++;
         }
 
         view.show();
-        _tmp_plane_models = this->check_normal_direction(_tmp_plane_models, _tmp_plane_indices);
-        _refined_plane_models = this->refine_plane_models(_tmp_plane_models, _direction);
 
-        for (pcl::ModelCoefficients _coeffs : _refined_plane_models)
-           this->plane_models.push_back(_coeffs);
+        //  REFINING PLANES
+        // _tmp_plane_models = this->check_normal_direction(_tmp_plane_models, _tmp_plane_indices);
+        // _refined_plane_models = this->refine_plane_models(_tmp_plane_models, _direction);
+        // 
+        // for (pcl::ModelCoefficients _coeffs : _refined_plane_models)
+        //    this->plane_models.push_back(_coeffs);
+
+
     }
 
 
@@ -833,21 +841,15 @@ public:
             cout << " - Coeffs: ";
             arvc::print_vector(_tmp_plane_models[i].values);
 
-            arvc::viewer view("TMP VIEWER");
-            arvc::plane _tmp_plane;
-            pcl::PointIndicesPtr _tmp_inliers(new pcl::PointIndices);
+        }        
 
-
-            view.addCloud(_tmp_plane.cloud, arvc::color::YELLOW_COLOR);
-            view.addPlane(_tmp_plane, arvc::color::YELLOW_COLOR);
-            view.addOrigin();
-            view.show();
-        }
-        
         for (size_t i = 0; i < _tmp_plane_models.size()-1; i++)
         {
 
-            float delta_d = abs(_tmp_plane_models[i].values[3] - _tmp_plane_models[i+1].values[3]);
+            float delta_d;
+            delta_d  = abs(_tmp_plane_models[i].values[3] - _tmp_plane_models[i+1].values[3]);
+
+            delta_d = arvc::plane_to_plane_distance(_tmp_plane_models[i], _tmp_plane_models[i+1], _direction);
 
             if (delta_d < this->width_threshold * 0.95){
 
@@ -861,7 +863,7 @@ public:
                 _new_inliers_1->indices.insert(_new_inliers_1->indices.end(), _new_inliers_2->indices.begin(), _new_inliers_2->indices.end());
 
                 tmp_indices = arvc::get_unique(_new_inliers_1->indices);
-                tmp_coeffs = arvc::compute_planar_ransac_direction(this->cloud_in_xyz, tmp_indices, true, 0.02, 1000, _direction);
+                tmp_coeffs = arvc::compute_planar_ransac_direction(this->cloud_in_xyz, tmp_indices, true, 0.025, 1000, _direction);
 
                 if (cons.enable_debug){                
                     double dist = pcl::pointToPlaneDistanceSigned(pcl::PointXYZ(0,0,0), tmp_coeffs->values[0], tmp_coeffs->values[1], tmp_coeffs->values[2], tmp_coeffs->values[3]);
@@ -1098,19 +1100,23 @@ public:
 
 int main(int argc, char const *argv[])
 {
-    // hide all mesages from pcl
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    // SET CONSOLE OUTPUT
     cons.enable = true;
     cons.enable_debug = true;
     cons.enable_warning = true;
     cons.enable_error = true;
     cons.enable_info = false;
-    
 
     pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
 
     std::cout << setprecision(3) << std::fixed;
     const double RANGE_DIST = 1;
 
+
+    // CREATE THE TRUSS PLANE DETECTOR OBJECT
     truss_plane_detector td(RANGE_DIST);
 
     td.length_threshold = 1.0;
@@ -1142,7 +1148,7 @@ int main(int argc, char const *argv[])
     
     
     // VISUALIZE RESULTS
-    arvc::viewer view("VIEWER");
+    arvc::viewer view("FINAL VIEWER");
 
     // for (arvc::plane plane : td.detected_planes)
     //     view.addCloud(plane.cloud, plane.color);
@@ -1153,6 +1159,9 @@ int main(int argc, char const *argv[])
     view.show();
 
 
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    std::cout << "Execution time: " << duration.count() << " microseconds" << std::endl;
     
     return 0;
 }

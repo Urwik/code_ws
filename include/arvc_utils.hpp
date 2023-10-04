@@ -1401,6 +1401,15 @@ void print_vector(vector<float> _vector)
 }
 
 
+  float plane_to_plane_distance(const pcl::ModelCoefficients &_plane1, const pcl::ModelCoefficients &_plane2, const Eigen::Vector3f _normal)
+  {
+    float distance = 0.0;
+    distance = abs(_plane1.values[3] - _plane2.values[3]) / _normal.norm();
+
+    return distance;
+  }
+
+
   vector<int> get_duplicates(vector<int> _vector)
   {
 

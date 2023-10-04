@@ -175,6 +175,12 @@ void close(){
     this->view->close();
 }
 
+void clear(){
+    this->view->removeAllPointClouds();
+    this->view->removeAllShapes();
+    this->cloud_count = 0;
+}
+
 void show(){
     while(!this->view->wasStopped())
     this->view->spinOnce(100);
