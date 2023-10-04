@@ -728,7 +728,7 @@ public:
         ransac.setDistanceThreshold(0.025);
         // ransac.setAxis(_direction.normalized());
         ransac.setAxis(_direction);
-        ransac.setEpsAngle (pcl::deg2rad (5.0));
+        ransac.setEpsAngle (pcl::deg2rad (1.0));
 
         arvc::viewer view("TMP VIEWER_1");
 
