@@ -16,14 +16,16 @@ public:
     console(/* args */);
     ~console();
 
-    void info(const char* msg);
-    void warning(const char* msg);
-    void error(const char* msg);
+    void info(const string msg);
+    void warning(const string msg);
+    void error(const string msg);
+    void debug(const string msg);
 
     bool enable;
     bool enable_info;
     bool enable_warning;
     bool enable_error;
+    bool enable_debug;
 };
 
 console::console(/* args */)
@@ -32,6 +34,7 @@ console::console(/* args */)
     enable_info = true;
     enable_warning = true;
     enable_error = true;
+    enable_debug = true;
 }
 
 console::~console()
@@ -39,20 +42,26 @@ console::~console()
 }
 
 
-void console::info(const char* msg)
+void console::info(const string msg)
 {
     if (enable_info && enable)
         std::cout << GREEN << msg << RESET << std::endl;
 }
 
-void console::warning(const char* msg)
+void console::warning(const string msg)
 {
     if (enable_warning && enable)
         std::cout << YELLOW << msg << RESET << std::endl;
 }
 
-void console::error(const char* msg)
+void console::error(const string msg)
 {
     if (enable_error && enable)
         std::cout << RED << msg << RESET << std::endl;
+}
+
+void console::debug(const string msg)
+{
+    if (enable_debug && enable)
+        std::cout << msg << std::endl;
 }

@@ -18,6 +18,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
+#include <pcl/common/angles.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/filter_indices.h>
@@ -541,6 +542,28 @@ namespace arvc
     ransac.setMethodType(pcl::SAC_RANSAC);
     ransac.setMaxIterations(maxIterations);
     ransac.setDistanceThreshold(distThreshold);
+    ransac.segment(point_indices, *plane_coeffs);
+
+    return plane_coeffs;
+  }
+
+  pcl::ModelCoefficientsPtr 
+  compute_planar_ransac_direction (PointCloud::Ptr &_cloud_in, const pcl::PointIndicesPtr& _indices, const bool optimizeCoefs=true,
+              float distThreshold = 0.02, int maxIterations = 1000, Eigen::Vector3f _direction = Eigen::Vector3f(0,0,1))
+  {
+    pcl::PointIndices point_indices;
+    pcl::SACSegmentation<PointT> ransac;
+    pcl::ModelCoefficientsPtr plane_coeffs (new pcl::ModelCoefficients);
+
+    ransac.setInputCloud(_cloud_in);
+    ransac.setIndices(_indices);
+    ransac.setOptimizeCoefficients(optimizeCoefs);
+    ransac.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
+    ransac.setMethodType(pcl::SAC_RANSAC);
+    ransac.setMaxIterations(maxIterations);
+    ransac.setDistanceThreshold(distThreshold);
+    ransac.setAxis(_direction);
+    ransac.setEpsAngle (pcl::deg2rad (5.0));
     ransac.segment(point_indices, *plane_coeffs);
 
     return plane_coeffs;
@@ -1377,28 +1400,44 @@ void print_vector(vector<float> _vector)
   std::cout << " ]" << std::endl;
 }
 
-vector<int> get_duplicates(vector<int> _vector)
-{
 
-  vector<int>::iterator it;
-  vector<int> duplicates;
-
-  sort(_vector.begin(), _vector.end());
-  it = adjacent_find(_vector.begin(), _vector.end());
-
-  // GET DUPLICATES AS A VECTOR
-  while (it != _vector.end())
+  vector<int> get_duplicates(vector<int> _vector)
   {
-    duplicates.push_back(*it);
-    it = adjacent_find(++it, _vector.end());
-  } 
 
-  // REMOVE DUPLICATES INSIDE THE DUPLICATE VALUES VECTOR
-  it = unique(duplicates.begin(), duplicates.end());
-  duplicates.resize(distance(duplicates.begin(), it));
-  
-  return duplicates;
-}
+    vector<int>::iterator it;
+    vector<int> duplicates;
+
+    sort(_vector.begin(), _vector.end());
+    it = adjacent_find(_vector.begin(), _vector.end());
+
+    // GET DUPLICATES AS A VECTOR
+    while (it != _vector.end())
+    {
+      duplicates.push_back(*it);
+      it = adjacent_find(++it, _vector.end());
+    } 
+
+    // REMOVE DUPLICATES INSIDE THE DUPLICATE VALUES VECTOR
+    it = unique(duplicates.begin(), duplicates.end());
+    duplicates.resize(distance(duplicates.begin(), it));
+    
+    return duplicates;
+  }
+
+
+  pcl::PointIndices::Ptr get_unique(vector<int> _indices){
+    
+    pcl::PointIndices::Ptr _unique_indices (new pcl::PointIndices);
+
+    sort(_indices.begin(), _indices.end());
+    auto it = unique(_indices.begin(), _indices.end());
+    _indices.resize(distance(_indices.begin(), it));
+
+    _unique_indices->indices = _indices;
+
+    return _unique_indices;
+  }
+
 
   pcl::Indices get_cloud_indices(const PointCloud::Ptr &_cloud_in){
     pcl::Indices indices;
@@ -1436,25 +1475,17 @@ vector<int> get_duplicates(vector<int> _vector)
   }
 
 
-  pcl::PointIndices::Ptr get_unique(vector<int> _indices){
-    
-    pcl::PointIndices::Ptr _unique_indices (new pcl::PointIndices);
 
-    sort(_indices.begin(), _indices.end());
-    auto it = unique(_indices.begin(), _indices.end());
-    _indices.resize(distance(_indices.begin(), it));
 
-    _unique_indices->indices = _indices;
-  }
 
-  vector<int> cat_vectors(vector<vector> _vectors){
-    vector<int> _cat_vector;
+  // vector<int> cat_vectors(vector<vector> _vectors){
+  //   vector<int> _cat_vector;
 
-    for (auto _vector : _vectors)
-      _cat_vector.insert(_cat_vector.end(), _vector.begin(), _vector.end());
+  //   for (auto _vector : _vectors)
+  //     _cat_vector.insert(_cat_vector.end(), _vector.begin(), _vector.end());
 
-    return _cat_vector;
-  }
+  //   return _cat_vector;
+  // }
 
 
 

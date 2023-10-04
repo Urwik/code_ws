@@ -14,11 +14,15 @@
 
 #include <Eigen/Geometry>
 
-arvc::console cons;
-
 
 namespace im = ignition::math;
 
+arvc::console cons;
+
+
+bool compare_plane_model_d(pcl::ModelCoefficients _model_1,pcl::ModelCoefficients _model_2){
+    return (_model_1.values[3] < _model_2.values[3]);
+}
 
 class truss_plane_detector
 {   
@@ -643,9 +647,59 @@ public:
 
         cout << GREEN << "\n- DIRECTION Y -------------------------------" << RESET << endl;
         this->get_planes_in_direction(this->search_directions.y, arvc::color::GREEN_COLOR);
+       
         cout << BLUE << "\n- DIRECTION Z -------------------------------" << RESET << endl;
         this->get_planes_in_direction(this->search_directions.z, arvc::color::BLUE_COLOR);
         cout << "\nGET ALL DIRECTION PLANES " << GREEN << "DONE" << RESET << endl;
+    }
+
+
+    vector<pcl::ModelCoefficients> check_normal_direction(vector<pcl::ModelCoefficients> _plane_models, vector<pcl::PointIndices> _plane_indices){
+        
+        cons.debug("# Checking normal direction...");
+        float first_normal_sense;
+        float tmp_normal_sense;
+        bool flip_normal;
+
+        vector<pcl::ModelCoefficients> _corrected_plane_models;
+        _corrected_plane_models = _plane_models;
+
+        Eigen::Vector3f normal;
+        Eigen::Vector3f origin(0,0,0);
+        Eigen::Vector4f centroid;
+        PointCloud::Ptr tmp_cloud(new PointCloud);
+
+        for (size_t i = 0; i < _corrected_plane_models.size(); i++)
+        {
+            flip_normal = false;
+
+            normal.x() = _corrected_plane_models[i].values[0];
+            normal.y() = _corrected_plane_models[i].values[1];
+            normal.z() = _corrected_plane_models[i].values[2];
+
+            pcl::compute3DCentroid(*this->cloud_in_xyz, _plane_indices[i], centroid);
+
+            if (i == 0){
+                first_normal_sense = normal.dot(origin - centroid.head(3));
+                cons.error("FIRST NORMAL SENSE: " + to_string(first_normal_sense));
+            }
+            else{
+
+                tmp_normal_sense = normal.dot(origin - centroid.head(3));
+                cons.error("TMP NORMAL SENSE: " + to_string(tmp_normal_sense));
+
+                if (first_normal_sense > 0 && tmp_normal_sense < 0){
+                    cons.debug(" - Flipping normal");
+                    _corrected_plane_models[i].values[3] = -_corrected_plane_models[i].values[3];
+                }
+                else if (first_normal_sense < 0 && tmp_normal_sense > 0){
+                    cons.debug(" - Flipping normal");
+                    _corrected_plane_models[i].values[3] = -_corrected_plane_models[i].values[3];
+                }
+            }
+        }
+
+        return _corrected_plane_models;
     }
 
 
@@ -659,6 +713,10 @@ public:
         pcl::SACSegmentation<PointT> ransac;
         arvc::plane plane;
         vector<arvc::plane> plane_clusters;
+        vector<pcl::ModelCoefficients> _refined_plane_models;
+
+        vector<pcl::ModelCoefficients> _tmp_plane_models;
+        vector<pcl::PointIndices> _tmp_plane_indices;
 
         pcl::ModelCoefficientsPtr _coeffs(new pcl::ModelCoefficients);
         pcl::PointIndicesPtr _inliers(new pcl::PointIndices);
@@ -668,10 +726,12 @@ public:
         ransac.setMethodType(pcl::SAC_RANSAC);
         ransac.setMaxIterations(5000);
         ransac.setDistanceThreshold(0.025);
-        ransac.setAxis(_direction.normalized());
+        // ransac.setAxis(_direction.normalized());
+        ransac.setAxis(_direction);
         ransac.setEpsAngle (pcl::deg2rad (5.0));
 
-        arvc::viewer view("TMP VIEWER");
+        arvc::viewer view("TMP VIEWER_1");
+
         view.addEigenVectors(Eigen::Vector3f(0,0,0), this->search_directions);
 
         // LOOP TO FIND ALL PLANES IN THE DIRECTION UNTIL NO MORE PLANES ARE FOUND OR THE CLOUD IS TOO SMALL
@@ -682,6 +742,7 @@ public:
             _inliers->indices.clear();
             _coeffs->values.clear();
 
+            // COMPUTE PLANE PARAMETERS
             ransac.setInputCloud(this->cloud_search_xyz);
             tree->setInputCloud(this->cloud_search_xyz);
             ransac.setSamplesMaxDist(0.1, this->tree); //TODO
@@ -692,15 +753,26 @@ public:
                 break;
 
             // SHOW SOME INFORMATION
-            cout << "Plane_" << _count << ":" << endl;
+            cout << "Plane_" << _count << ": " ;
             // cout << " - Inliers: " << _inliers->indices.size();
             cout << " - Coeffs: ";
             arvc::print_vector(_coeffs->values);
 
-            // SAVE PLANE MODEL
-            this->plane_models.push_back(*_coeffs);
+            // arvc::plane _tmp_plane;
+            // _tmp_plane.setPlane(_coeffs, _inliers, this->cloud_search_xyz);
+
+            // arvc::viewer view2("TMP VIEWER");
+            // view2.addCloud(_tmp_plane.cloud, _color);
+            // view2.addPlane(_tmp_plane, _color);
+            // view2.addOrigin();
+            // view2.show();
+
+
+            // SAVE PLANE PARAMETERS
+            _tmp_plane_models.push_back(*_coeffs);
+            _tmp_plane_indices.push_back(*_inliers);
             // this->plane_inliers.push_back(*_inliers);
-            
+
             // REMOVE FROM THE SEARCH CLOUD THE ACTUAL PLANE INLIERS
             PointCloud::Ptr tmp_cloud(new PointCloud);
             pcl::ExtractIndices<pcl::PointXYZ> extract;
@@ -717,24 +789,69 @@ public:
 
             _count++;
         }
+
         view.show();
-        cout << "\t- Num of Planes Detected: " << _count << endl;
+        _tmp_plane_models = this->check_normal_direction(_tmp_plane_models, _tmp_plane_indices);
+        _refined_plane_models = this->refine_plane_models(_tmp_plane_models, _direction);
+
+        for (pcl::ModelCoefficients _coeffs : _refined_plane_models)
+           this->plane_models.push_back(_coeffs);
     }
 
 
-    vector<pcl::ModelCoefficients> refine_plane_models(const vector<pcl::ModelCoefficients>& _plane_models){
+
+
+    vector<pcl::ModelCoefficients> sort_plane_models(vector<pcl::ModelCoefficients> _plane_models){
         
+        cons.debug(" - Sorting plane models...");
+
+        sort(_plane_models.begin(), _plane_models.end(), compare_plane_model_d);
+        return _plane_models;
+    }
+
+
+    vector<pcl::ModelCoefficients> refine_plane_models(const vector<pcl::ModelCoefficients>& _plane_models, const Eigen::Vector3f& _direction){
+        
+        cons.debug(" - Refining plane models...");
+        cons.debug(" - Initial plane models: " + to_string(_plane_models.size()));
+
         vector<pcl::ModelCoefficients> _new_plane_models;
+        vector<pcl::ModelCoefficients> _tmp_plane_models; 
+        vector<int>::allocator_type _refined_indices;
 
         pcl::ModelCoefficientsPtr tmp_coeffs (new pcl::ModelCoefficients);
         pcl::PointIndicesPtr tmp_indices (new pcl::PointIndices);
 
-        for (size_t i = 0; i < _plane_models.size()-1; i++)
-        {
-            float delta_d = _plane_models[i].values[3] - _plane_models[i+1].values[3];
+        
+        _tmp_plane_models = _plane_models;
 
-            if (delta_d < 0.05){
-                // UNIR AMBOS MODELOS
+        _tmp_plane_models = this->sort_plane_models(_tmp_plane_models);
+
+        for (size_t i = 0; i < _tmp_plane_models.size(); i++)
+        {
+            cout << "Plane_" << i << ": " ;
+            cout << " - Coeffs: ";
+            arvc::print_vector(_tmp_plane_models[i].values);
+
+            arvc::viewer view("TMP VIEWER");
+            arvc::plane _tmp_plane;
+            pcl::PointIndicesPtr _tmp_inliers(new pcl::PointIndices);
+
+
+            view.addCloud(_tmp_plane.cloud, arvc::color::YELLOW_COLOR);
+            view.addPlane(_tmp_plane, arvc::color::YELLOW_COLOR);
+            view.addOrigin();
+            view.show();
+        }
+        
+        for (size_t i = 0; i < _tmp_plane_models.size()-1; i++)
+        {
+
+            float delta_d = abs(_tmp_plane_models[i].values[3] - _tmp_plane_models[i+1].values[3]);
+
+            if (delta_d < this->width_threshold * 0.95){
+
+                // JOIN MODELS
                 pcl::PointIndicesPtr _new_inliers_1(new pcl::PointIndices);
                 pcl::PointIndicesPtr _new_inliers_2(new pcl::PointIndices);
 
@@ -743,12 +860,36 @@ public:
 
                 _new_inliers_1->indices.insert(_new_inliers_1->indices.end(), _new_inliers_2->indices.begin(), _new_inliers_2->indices.end());
 
-               tmp_indices = arvc::get_unique(_new_inliers_1->indices);
+                tmp_indices = arvc::get_unique(_new_inliers_1->indices);
+                tmp_coeffs = arvc::compute_planar_ransac_direction(this->cloud_in_xyz, tmp_indices, true, 0.02, 1000, _direction);
 
-                tmp_coeffs = arvc::compute_planar_ransac(this->cloud_in_xyz, tmp_indices, true, 0.02, 100);
-                _new_plane_models.push_back(*tmp_coeffs);
+                if (cons.enable_debug){                
+                    double dist = pcl::pointToPlaneDistanceSigned(pcl::PointXYZ(0,0,0), tmp_coeffs->values[0], tmp_coeffs->values[1], tmp_coeffs->values[2], tmp_coeffs->values[3]);
+
+                    cons.debug(" - Mergin Planes " + to_string(i) + "-" + to_string(i+1) + " | Delta_d: " + to_string(delta_d) + " | Distance to origin: " + to_string(dist));
+
+                    cout << " - New Plane Coeffs: ";
+                    arvc::print_vector(tmp_coeffs->values);
+                    
+                    arvc::viewer view("TMP VIEWER");
+                    arvc::plane _tmp_plane;
+                    _tmp_plane.setPlane(tmp_coeffs, tmp_indices, this->cloud_in_xyz);
+                    view.addCloud(_tmp_plane.cloud, arvc::color::YELLOW_COLOR);
+                    view.addPlane(_tmp_plane, arvc::color::YELLOW_COLOR);
+                    view.addOrigin();
+                    view.show();
+                }
+
+                _tmp_plane_models[i+1] = *tmp_coeffs;
+
+            }
+            else{
+                _new_plane_models.push_back(_tmp_plane_models[i]);
             }
         }
+        _new_plane_models.push_back(_tmp_plane_models[_tmp_plane_models.size()-1]);
+
+        cons.debug(" - Final plane models: " + to_string(_new_plane_models.size()));
         return _new_plane_models;
     }
 
@@ -775,7 +916,7 @@ public:
 
         sac_plane.selectWithinDistance(_model, _threshold, _inliers->indices);
 
-        cout << "Extracted Inliers: " << _inliers->indices.size() << endl;
+        cons.info("Extracted Inliers: " + to_string(_inliers->indices.size()));
 
         return _inliers;
     }
@@ -791,12 +932,15 @@ public:
         cout << "\nGetting the intersection between " << this->plane_models.size() << " plane models..." << endl;
         
         for (size_t i = 0; i < this->plane_models.size(); i++){
-            arvc::viewer view("TMP VIEWER 2");
+            
             *tmp_indices = *this->get_inliers(this->plane_models[i], 0.02, this->cloud_in_xyz);
             *_indices = tmp_indices->indices;
             tmp_cloud = arvc::extract_indices(this->cloud_in_xyz, _indices);
-            view.addCloud(tmp_cloud, arvc::color::WHITE_COLOR);
-            view.show();
+            
+            // arvc::viewer view("TMP VIEWER 2");
+            // view.addCloud(tmp_cloud, arvc::color::WHITE_COLOR);
+            // view.show();
+            
             cat_indices->indices.insert(cat_indices->indices.end(), tmp_indices->indices.begin(), tmp_indices->indices.end());
         }
 
@@ -955,6 +1099,12 @@ public:
 int main(int argc, char const *argv[])
 {
     // hide all mesages from pcl
+    cons.enable = true;
+    cons.enable_debug = true;
+    cons.enable_warning = true;
+    cons.enable_error = true;
+    cons.enable_info = false;
+    
 
     pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
 

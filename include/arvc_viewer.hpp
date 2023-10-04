@@ -66,7 +66,7 @@ void addCloud(const PointCloud::Ptr& cloud, const arvc::color& _color){
 
 void addOrigin(const int& _viewport= 0)
 {
-    this->view->addCoordinateSystem(0.1, "origin"+to_string(_viewport), _viewport);
+    this->view->addCoordinateSystem(1, "origin"+to_string(_viewport), _viewport);
     pcl::PointXYZ origin_point(0,0,0);
     this->view->addSphere(origin_point, 0.02, "sphere"+to_string(_viewport), _viewport);
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 1.0, 0.0, "sphere"+to_string(_viewport), _viewport);
@@ -164,7 +164,6 @@ void addPolygon(const vector<Eigen::Vector3f>& _polygon, arvc::color _color = ar
 
 void addPlane(const arvc::plane& _plane, arvc::color _color = arvc::color(255,255,255), const int& _viewport=0){
 
-    cout << "Plane: " << _plane.coeffs->values[0] << " " << _plane.coeffs->values[1] << " " << _plane.coeffs->values[2] << " " << _plane.coeffs->values[3] << endl;
     this->view->addPlane(*_plane.coeffs, _plane.centroid.x(), _plane.centroid.y(), _plane.centroid.z(), "plane_"+to_string(this->cloud_count), _viewport);
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, _color.r / 255, _color.g / 255, _color.b / 255, "plane_"+to_string(this->cloud_count), _viewport);
     this->view->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.5, "plane_"+to_string(this->cloud_count), _viewport);
