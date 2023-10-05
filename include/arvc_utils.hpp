@@ -7,6 +7,7 @@
 #include <chrono>
 #include <numeric>
 #include <vector>
+#include <unordered_set>
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -1447,6 +1448,19 @@ void print_vector(vector<float> _vector)
     return _unique_indices;
   }
 
+
+
+  template<typename T>
+  void remove_values_from_vector(std::vector<T>& values, const std::vector<T>& to_remove)
+  {
+    std::unordered_set<T> set(to_remove.begin(), to_remove.end());
+
+    auto new_end = std::remove_if(values.begin(), values.end(), [&](const T& value) {
+      return set.find(value) != set.end(); 
+      });
+
+    values.erase(new_end, values.end());
+  }
 
   pcl::Indices get_cloud_indices(const PointCloud::Ptr &_cloud_in){
     pcl::Indices indices;
