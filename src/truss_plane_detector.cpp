@@ -18,6 +18,7 @@
 namespace im = ignition::math;
 
 arvc::console cons;
+arvc::viewer global_viewer;
 
 
 bool compare_plane_model_d(pcl::ModelCoefficients _model_1,pcl::ModelCoefficients _model_2){
@@ -91,7 +92,7 @@ public:
      * @brief Detect a plane on the truss to set the search directions
     */
     void detect_initial_plane(){
-        
+
         pcl::PointIndicesPtr point_indices (new pcl::PointIndices);
         pcl::SACSegmentation<PointT> ransac;
         pcl::ModelCoefficientsPtr plane_coeffs (new pcl::ModelCoefficients);
@@ -101,9 +102,12 @@ public:
         for (int i = 0; i < this->cloud_in_xyz->points.size(); i++)
             this->remain_indices->indices[i] = i;
         
+        // FUNCIONANDO ANTES
         pcl::copyPointCloud(*this->cloud_in_xyz, *this->cloud_search_xyz);
+        // this->tree->setInputCloud(this->cloud_in_xyz);
 
-        this->tree->setInputCloud(this->cloud_in_xyz);
+        this->tree->setInputCloud(this->cloud_search_xyz);
+
 
         cout << BLUE << "\n- DETECTING INITIAL PLANE -------------------------------" << RESET << endl;
         int intento = 0;
@@ -130,7 +134,6 @@ public:
             
             // SETUP THE INITIAL PLANE OBJECT
             this->initial_plane.setPlane(plane_coeffs, point_indices, this->cloud_search_xyz);
-
             
             // VALIDATE PLANES FOUND
             if(!this->validate_plane(this->initial_plane))
@@ -315,7 +318,6 @@ public:
         extract.setIndices(indices);
         extract.setNegative(false);
         extract.filter(*this->cloud_search_xyz);
-
     }
 
 
@@ -782,18 +784,18 @@ public:
             pcl::ExtractIndices<pcl::PointXYZ> extract;
             extract.setInputCloud(this->cloud_search_xyz);
             extract.setIndices(_inliers);
-            extract.setNegative(true);
-            extract.filter(*this->cloud_search_xyz);
             
-
             if(cons.enable){
                 extract.setNegative(false);
                 extract.filter(*tmp_cloud);
 
-                arvc::color tmp_color;
-                tmp_color.random();
-                view.addCloud(tmp_cloud, tmp_color);
+                view.addCloud(tmp_cloud, _color);
             }
+            
+            extract.setNegative(true);
+            extract.filter(*this->cloud_search_xyz);
+            
+
             _count++;
         }
 
@@ -1193,10 +1195,8 @@ int main(int argc, char const *argv[])
     pcl::transformPointCloud(*td.cloud_in_xyz, *td.cloud_in_xyz, td.RobotBaseToSensorTF);
 
 
-
     // DETECT INITIAL PLANE
     td.initial_detection();
-
 
     // DETECT PLANES IN THE REMAINING CLOUD IN THE THREE DIRECTIONS
     td.complete_detection();
@@ -1204,7 +1204,6 @@ int main(int argc, char const *argv[])
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
     std::cout << "Execution time: " << duration.count() << " miliseconds" << std::endl;
-
 
 
 
