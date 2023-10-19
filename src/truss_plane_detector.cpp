@@ -1212,6 +1212,7 @@ int main(int argc, char const *argv[])
 
     for (arvc::plane plane : td.detected_planes){
         view.addCloud(plane.cloud, plane.color);
+        view.addEigenVectors(plane.centroid.head<3>(), plane.eigenvectors);
         // view.addPolygon(plane.polygon, plane.color);
     }
 

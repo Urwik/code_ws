@@ -6,6 +6,8 @@
 #include <pcl/point_types.h>
 #include <pcl/common/common.h>
 
+#include "arvc_utils.hpp"
+
 class plane
 {
 public:
@@ -170,8 +172,9 @@ public:
         *this->original_cloud = *_cloud_in;
         this->getNormal();
         this->getCloud();
-        this->getEigenVectors();
-        this->getEigenValues();
+        // this->getEigenVectors();
+        // this->getEigenValues();
+        this->compute_eigenDecomposition(true);
         this->getCentroid();
         this->getTransform();  
         this->getPolygon();
@@ -233,10 +236,27 @@ public:
 
 
     void forceEigenVectors(arvc::axes3d _search_directions){
-        this->eigenvectors.z = this->normal;
+        int idx;
+        std::vector<float>::iterator it;
+        std::vector<float> dp;
+        arvc::axes3d _new_axes;
 
-        this->eigenvectors.x = _search_directions.y; //TODO: CAMBIAR ESTO PARA ENCONTRAR CUAL ES LA DIRECCIÓN PERPENDICULAR A LA NORMAL CORRECTA
-        this->eigenvectors.y = _search_directions.z;
+        for (size_t i = 0; i < 3; i++)
+        {
+            dp.clear();
+
+            for (size_t j = 0; j < 3; j++)
+                dp.push_back(this->eigenvectors(i).dot(_search_directions(j)));
+
+            it = std::max_element(dp.begin(), dp.end());
+            idx = distance(dp.begin(), it);
+            _new_axes(i) = _search_directions(idx);
+        }
+
+        this->eigenvectors = _new_axes;        
+        // this->eigenvectors.z = this->normal;
+        // this->eigenvectors.x = _search_directions.y; //TODO: CAMBIAR ESTO PARA ENCONTRAR CUAL ES LA DIRECCIÓN PERPENDICULAR A LA NORMAL CORRECTA
+        // this->eigenvectors.y = _search_directions.z;
     }
 
 
@@ -304,7 +324,7 @@ public:
 
         if (this->length < this->width){
             swap(this->length, this->width);
-            swap(this->eigenvalues.x(), this->eigenvalues.y());
+            swap(this->eigenvectors.x, this->eigenvectors.y);
         }
 
 
