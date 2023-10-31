@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <thread>
 
-#include "arvc_utils.hpp"
+#include "arvc_utils_v2.hpp"
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -19,9 +19,12 @@ namespace fs = std::filesystem;
 int main(int argc, char **argv)
 {
   fs::path current_path = fs::current_path();
-  PointCloudL::Ptr infered_cloud (new PointCloudL);
-  PointCloudL::Ptr gt_cloud (new PointCloudL);
+
+  PointCloudLN::Ptr grnt_cloud (new PointCloudLN);
+  PointCloudL::Ptr  pred_cloud (new PointCloudL);
+
   PointCloud::Ptr cloud_in (new PointCloud);
+  
   gt_indices _gt_idx;
   gt_indices _i_idx;
   cm_indices _cm_indices;
@@ -30,25 +33,19 @@ int main(int argc, char **argv)
   _cm_indices.fp_idx.reset(new pcl::Indices);
   _cm_indices.fn_idx.reset(new pcl::Indices);
 
-  fs::path gt_path("/home/arvc/Desktop/Home_PC/Datasets/infered_clouds/ground_truth/trees.ply");
-  fs::path infered_path("/home/arvc/Desktop/Home_PC/Datasets/infered_clouds/pointnet2/trees.ply");
+  string CLOUD_NAME = argv[1];
 
-  gt_cloud = arvc::readCloudWithLabel(gt_path);
-  _gt_idx = arvc::getGroundTruthIndices(gt_cloud);
+  fs::path grndtruth_path("/media/arvc/data/datasets/ARVCTRUSS/arvc_truss_test/ply_xyzLabelNormal/" + CLOUD_NAME + ".ply");
+  fs::path predicted_path("/home/arvc/PycharmProjects/arvc_Minkowski/binary_segmentation/saved_models/230310174515/Unique_pred_clouds/" + CLOUD_NAME + ".ply");
+
+  grnt_cloud = arvc::readPointCloud<PointLN> (grndtruth_path);
+  pred_cloud = arvc::readPointCloud<PointL>(predicted_path);
   
-  infered_cloud = arvc::readCloudWithLabel(infered_path);
-  _i_idx = arvc::getGroundTruthIndices(infered_cloud);
+  _gt_idx = arvc::getGroundTruthIndices(grnt_cloud);
+  _i_idx = arvc::getGroundTruthIndices(pred_cloud);
 
-  cloud_in = arvc::parseToXYZ(gt_cloud);
+  cloud_in = arvc::parseToXYZ(grnt_cloud);
 
-  //   // Definir el factor de escala
-  // float scalingFactor = 10.0;  // Escala de 2 (duplicar el tamaño)
-
-  // // Aplicar la transformación de escala a la nube de puntos
-  // Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-  // transform.scale(scalingFactor);
-  // pcl::PointCloud<pcl::PointXYZ>::Ptr scaledCloud(new pcl::PointCloud<pcl::PointXYZ>);
-  // pcl::transformPointCloud(*cloud_in, *cloud_in, transform);
 
   _cm_indices = arvc::compute_cm_indices(_gt_idx.truss, _gt_idx.ground, _i_idx.truss, _i_idx.ground);
 
@@ -65,17 +62,28 @@ int main(int argc, char **argv)
   error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
 
   pcl::visualization::PCLVisualizer my_vis;
+
+  try
+  {
+    my_vis.loadCameraParameters("cvw_camera_params.txt");
+  }
+  catch(const std::exception& e)
+  {
+  }
+  
+
+
   my_vis.setBackgroundColor(1,1,1);
   
   my_vis.addCoordinateSystem(0.8, "sensor_origin");
-  auto pos = cloud_in->sensor_origin_;
-  auto ori = cloud_in->sensor_orientation_;
+  // auto pos = cloud_in->sensor_origin_;
+  // auto ori = cloud_in->sensor_orientation_;
   
-  Eigen::Vector3f position(pos[0], pos[1], pos[2]);
-  my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
+  // Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+  // my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
 
 
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 0,255,0);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 50,200,50);
   pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
   pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 255,0,0);
 
@@ -85,6 +93,7 @@ int main(int argc, char **argv)
 
   while (!my_vis.wasStopped())
   {
+    my_vis.saveCameraParameters(CLOUD_NAME + "_camera_params.txt");
     my_vis.spinOnce(100);
   }
 

@@ -85,7 +85,7 @@ add_executable(arvc_plot_by_binary_label src/pointclouds/visualization/plot_by_b
 target_link_libraries(arvc_plot_by_binary_label ${PCL_LIBRARIES})
 
 add_executable(arvc_plot_correct_vs_wrong src/pointclouds/visualization/plot_correct_vs_wrong.cpp)
-target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES})
+target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
 # add_executable(arvc_replace_field src/pointclouds/replace_field.cpp)
 # target_link_libraries(arvc_replace_field ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
