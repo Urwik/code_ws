@@ -49,9 +49,15 @@ using namespace std;
 
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
+
 typedef pcl::PointXYZI PointI;
 typedef pcl::PointCloud<PointI> PointCloudI;
-typedef pcl::PointCloud<pcl::PointXYZL> PointCloudL;
+
+typedef pcl::PointXYZL PointL;
+typedef pcl::PointCloud<PointL> PointCloudL;
+
+typedef pcl::PointXYZLNormal PointLN;
+typedef pcl::PointCloud<PointLN> PointCloudLN;
 
 #define RESET   "\033[0m"
 #define RED     "\033[31m"
@@ -209,6 +215,37 @@ namespace arvc
 
     return _cloud_label;
   }
+
+
+template<typename PointT>
+typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
+{
+    typename pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
+    std::map<std::string, int> ext_map = { {".pcd", 0}, {".ply", 1} };
+
+    switch (ext_map[fs::path(path).extension().string()])
+    {
+        case 0:
+        {
+            pcl::PCDReader reader;
+            reader.read(path, *cloud);
+            break;
+        }
+        case 1:
+        {
+            pcl::PLYReader reader;
+            reader.read(path, *cloud);
+            break;
+        }
+        default:
+        {
+            std::cout << "Format not compatible, it should be .pcd or .ply" << std::endl;
+            break;
+        }
+    }
+
+    return cloud;
+}
 
 
   /**

@@ -107,16 +107,6 @@ int main(int argc, char **argv)
     intensity_vector.push_back(point.intensity);
   }
 
-  // std::vector<int>::iterator asdf = std::find(intensity_vector.begin(), intensity_vector.end(), 5);
-
-  
-
-  
+  // std::vector<int>::iterator asdf = std::find(intensity_vector.begin(), intensity_vector.end(), 5);  
   return 0;
 }
-
-
-
-// auto matrix = cloud->getMatrixXfMap(4,10,0);
-  // std::cout << get_shape(matrix.transpose()) << std::endl;
-  // std::cout << matrix.transpose().row(0) << std::endl;

@@ -39,6 +39,7 @@ public:
     static const color GREEN_COLOR;
     static const color YELLOW_COLOR;
     static const color WHITE_COLOR;
+    static const color ORANGE_COLOR;
     float r;
     float g;
     float b;
@@ -49,3 +50,4 @@ const color color::BLUE_COLOR = color(0,0,255);
 const color color::GREEN_COLOR = color(0,255,0);
 const color color::YELLOW_COLOR = color(255,255,0);
 const color color::WHITE_COLOR = color(255,255,255);
+const color color::ORANGE_COLOR = color(255,165,0);

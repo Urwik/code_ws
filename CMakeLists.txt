@@ -48,8 +48,8 @@ add_executable(arvc_check_duplicated_clouds src/datasets/check_duplicated_clouds
 target_link_libraries(arvc_check_duplicated_clouds ${PCL_LIBRARIES})
 
 # POINTCLOUDS .................................................................#
-# add_executable(arvc_pcd2ply src/pointclouds/pcd2ply.cpp)
-# target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
+add_executable(arvc_pcd2ply src/pointclouds/transforms/pcd2ply.cpp)
+target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 
 add_executable(arvc_compute_normals src/pointclouds/features/compute_normals.cpp)
 target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
