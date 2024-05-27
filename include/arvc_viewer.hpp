@@ -26,7 +26,9 @@ private:
 
 public:
     int v1,v2,v3,v4;
+    vector<float> background_color;
     pcl::visualization::PCLVisualizer::Ptr view;
+    bool save_cam_params;
     
     viewer(){
     this->view.reset(new pcl::visualization::PCLVisualizer("ARVC_VIEWER"));
@@ -36,6 +38,8 @@ public:
     this->v3 = 0;
     this->v4 = 0;
 
+    this->background_color = {0.0, 0.0, 0.0};
+    this->save_cam_params = false;
     }
 
     viewer(const string& name){
@@ -45,6 +49,9 @@ public:
     this->v2 = 0;
     this->v3 = 0;
     this->v4 = 0;
+
+    this->background_color = {0.0, 0.0, 0.0};
+    this->save_cam_params = false;
 
     }
 
@@ -182,8 +189,26 @@ void clear(){
 }
 
 void show(){
+
+    this->view->setBackgroundColor(this->background_color[0], this->background_color[1], this->background_color[2]);
+    
+    try
+    {
+        this->view->loadCameraParameters("cam_params.txt");
+    }
+    catch(const std::exception& e)
+    {
+        {}
+    }
+
     while(!this->view->wasStopped())
-    this->view->spinOnce(100);
+    {
+        if(this->save_cam_params)
+            this->view->saveCameraParameters("cam_params.txt");
+        
+        this->view->spinOnce(100);
+     
+    }
 }
 
 };
