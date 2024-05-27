@@ -44,6 +44,9 @@ target_link_libraries(arvc_check_num_points ${PCL_LIBRARIES})
 add_executable(arvc_check_real_dataset_pcd src/datasets/check_real_dataset_pcd.cpp)
 target_link_libraries(arvc_check_real_dataset_pcd ${PCL_LIBRARIES})
 
+add_executable(arvc_check_duplicated_clouds src/datasets/check_duplicated_clouds.cpp)
+target_link_libraries(arvc_check_duplicated_clouds ${PCL_LIBRARIES})
+
 # POINTCLOUDS .................................................................#
 # add_executable(arvc_pcd2ply src/pointclouds/pcd2ply.cpp)
 # target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
@@ -83,6 +86,9 @@ target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 
 add_executable(arvc_plot_by_binary_label src/pointclouds/visualization/plot_by_binary_label.cpp)
 target_link_libraries(arvc_plot_by_binary_label ${PCL_LIBRARIES})
+
+add_executable(arvc_plot_label_random_color src/pointclouds/visualization/plot_label_random_color.cpp)
+target_link_libraries(arvc_plot_label_random_color ${PCL_LIBRARIES})
 
 add_executable(arvc_plot_correct_vs_wrong src/pointclouds/visualization/plot_correct_vs_wrong.cpp)
 target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
