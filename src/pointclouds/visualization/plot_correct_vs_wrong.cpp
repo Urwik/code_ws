@@ -63,9 +63,11 @@ int main(int argc, char **argv)
 
   pcl::visualization::PCLVisualizer my_vis;
 
+      fs::path camera_params_path = "/home/arvc/workSpaces/rrss_grnd_filter/examples/minkunet_predictions/" + CLOUD_NAME + "_camera_params.txt";
+
   try
   {
-    my_vis.loadCameraParameters("cvw_camera_params.txt");
+    my_vis.loadCameraParameters(camera_params_path.string());
   }
   catch(const std::exception& e)
   {
@@ -83,9 +85,9 @@ int main(int argc, char **argv)
   // my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
 
 
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 50,200,50);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 50,190,50);
   pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 255,0,0);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 200,10,10);
 
   my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
   my_vis.addPointCloud(ground_cloud, ground_color, "wrong_cloud");
@@ -93,7 +95,7 @@ int main(int argc, char **argv)
 
   while (!my_vis.wasStopped())
   {
-    my_vis.saveCameraParameters(CLOUD_NAME + "_camera_params.txt");
+    my_vis.saveCameraParameters(camera_params_path.string());
     my_vis.spinOnce(100);
   }
 
