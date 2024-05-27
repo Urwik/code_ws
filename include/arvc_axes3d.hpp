@@ -41,6 +41,20 @@ class axes3d
       return os;
     }
 
+
+    Eigen::Vector3f& operator()(int index) {
+        switch (index) {
+            case 0:
+                return this->x;
+            case 1:
+                return this->y;
+            case 2:
+                return this->z;
+            default:
+                throw std::out_of_range("Index out of range");
+        }
+    }
+
     Eigen::Matrix3f getRotationMatrix(){
 
       this->rot_matrix << x.x(), y.x(), z.x(),
@@ -87,3 +101,4 @@ class axes3d
 
     return eigen_solver.eigenvalues().reverse();
 }
+

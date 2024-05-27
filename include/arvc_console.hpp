@@ -26,6 +26,7 @@ public:
     bool enable_warning;
     bool enable_error;
     bool enable_debug;
+    bool enable_vis;
 };
 
 console::console(/* args */)
@@ -35,10 +36,17 @@ console::console(/* args */)
     enable_warning = true;
     enable_error = true;
     enable_debug = true;
+    enable_vis = true;
 }
 
 console::~console()
 {
+    enable = false;
+    enable_info = false;
+    enable_warning = false;
+    enable_error = false;
+    enable_debug = false;
+    enable_vis = false;
 }
 
 
@@ -65,3 +73,4 @@ void console::debug(const string msg)
     if (enable_debug && enable)
         std::cout << msg << std::endl;
 }
+

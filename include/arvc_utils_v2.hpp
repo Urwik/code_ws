@@ -7,7 +7,6 @@
 #include <chrono>
 #include <numeric>
 #include <vector>
-#include <unordered_set>
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -149,6 +148,19 @@ namespace arvc
     return _gt_indices;
   }
 
+  /**
+   * @brief Get the Ground Truth object
+   * 
+   */
+  gt_indices
+  getGroundTruthIndices(PointCloudLN::Ptr &_cloud_label)
+  {
+    PointCloudL::Ptr _cloud_label_tmp (new PointCloudL);
+    pcl::copyPointCloud(*_cloud_label, *_cloud_label_tmp);
+
+    return getGroundTruthIndices(_cloud_label_tmp);
+  }
+
 
   /**
    * @brief Lee una nube de puntos en formato .pcd o .ply
@@ -216,6 +228,33 @@ namespace arvc
     return _cloud_label;
   }
 
+
+  PointCloudLN::Ptr 
+  readCloudWithLabelNormal (fs::path _path)
+  {
+    PointCloudLN::Ptr _cloud_label (new PointCloudLN);
+    map<string, int> ext_map = {{".pcd", 0}, {".ply", 1}};
+
+    switch (ext_map[_path.extension().string()])
+    {
+      case 0: {
+        pcl::PCDReader pcd_reader;
+        pcd_reader.read(_path.string(), *_cloud_label);
+        break;
+      }
+      case 1: {
+        pcl::PLYReader ply_reader;
+        ply_reader.read(_path.string(), *_cloud_label);
+        break;
+      }
+      default: {
+        std::cout << "Format not compatible, it should be .pcd or .ply" << std::endl;
+        break;
+      }
+    }
+
+    return _cloud_label;
+  }
 
 template<typename PointT>
 typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
@@ -286,6 +325,7 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
   {
 
     float _max_length;
+
     // Compute principal directions
     Eigen::Vector4f pcaCentroid;
     pcl::compute3DCentroid(*cloud, pcaCentroid);
@@ -343,6 +383,18 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
     return _cloud_xyz;
   }
 
+    /**
+   * @brief Convierte una nube de entrada con intensidad a solo coordenadas XYZ
+  */
+  PointCloud::Ptr
+  parseToXYZ(PointCloudLN::Ptr &_cloud_label)
+  {
+    PointCloud::Ptr _cloud_xyz (new PointCloud);
+    pcl::copyPointCloud(*_cloud_label, *_cloud_xyz);
+
+    return _cloud_xyz;
+  }
+
   /**
    * @brief Realiza agrupaciones de puntos en función de sus normales
    * 
@@ -353,6 +405,8 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
   std::pair<vector<pcl::PointIndices>, int>
   regrow_segmentation (PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices, bool _visualize=false)
   {
+    cout << "Regrow segmentation a set of indices fomr a cloud" << endl;
+
     auto start = std::chrono::high_resolution_clock::now();
     // Estimación de normales
     pcl::PointCloud<pcl::Normal>::Ptr _cloud_normals (new pcl::PointCloud<pcl::Normal>);
@@ -371,23 +425,21 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
     // Segmentación basada en crecimiento de regiones
     vector<pcl::PointIndices> _regrow_clusters;
     pcl::RegionGrowing<PointT, pcl::Normal> reg;
-    reg.setMinClusterSize (50);
+    reg.setMinClusterSize (50); //50 original
     reg.setMaxClusterSize (25000);
     reg.setSearchMethod (tree);
     reg.setSmoothModeFlag(false);
     reg.setCurvatureTestFlag(true);
     reg.setResidualThreshold(false);
     reg.setCurvatureThreshold(1);
-    reg.setNumberOfNeighbours (10);
+    reg.setNumberOfNeighbours (10); //10 original
     reg.setInputCloud (_cloud_in);
     reg.setIndices(_indices);
     reg.setInputNormals (_cloud_normals);
-    reg.setSmoothnessThreshold (10.0 / 180.0 * M_PI);
+    reg.setSmoothnessThreshold ( pcl::deg2rad(10.0)); //10 original
     reg.extract (_regrow_clusters);
 
-    // cout << "Number of clusters: " << _regrow_clusters.size() << endl;
-
-    // Uncomment to visualize cloud
+    // RESULTS VISUALIZATION 
     if(_visualize)
     {
       pcl::visualization::PCLVisualizer vis ("Regrow Visualizer");
@@ -395,21 +447,44 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
       int v1(0);
       int v2(0);
 
+      vis.setBackgroundColor(1,1,1);
+      try
+      {
+        vis.loadCameraParameters("camera_params_regrow_clusters.txt");
+        /* code */
+      }
+      catch(const std::exception& e)
+      {
+      }
+      
+
       //Define ViewPorts
       vis.createViewPort(0,0,0.5,1, v1);
-      vis.createViewPort(0.5,0,1,1, v2);
-
-      pcl::visualization::PointCloudColorHandlerCustom<PointT> green_color(_cloud_in, 0, 255, 0);
+      pcl::visualization::PointCloudColorHandlerCustom<PointT> green_color(_cloud_in, 10, 150, 10);
       vis.addPointCloud<PointT>(_cloud_in, green_color, "cloud", v1);
-      vis.addPointCloudNormals<PointT, pcl::Normal>(_cloud_in, _cloud_normals, 1, 0.1, "normals", v1);
+      vis.addPointCloudNormals<PointT, pcl::Normal>(_cloud_in, _cloud_normals, 5, 0.1, "normals", v1);
 
 
+      vis.createViewPort(0.5,0,1,1, v2);
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
       color_cloud = reg.getColoredCloud();
+
+      pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+      extract.setInputCloud(color_cloud);
+      pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+      inliers->indices = *_indices;
+      extract.setIndices(inliers);
+      extract.setNegative(false);
+      extract.filter(*color_cloud);
+
       vis.addPointCloud<pcl::PointXYZRGB>(color_cloud, "Regrow Segments",v2);
 
+
       while (!vis.wasStopped())
+      {
+        vis.saveCameraParameters("camera_params_regrow_clusters.txt");
         vis.spinOnce();
+      }
     }
     return std::pair<vector<pcl::PointIndices>, int> {_regrow_clusters, duration.count()};
   }
@@ -424,6 +499,7 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
   std::pair<vector<pcl::PointIndices>, int>
   regrow_segmentation (PointCloud::Ptr &_cloud_in, bool _visualize = false)
   {
+    cout << "Regrow segmentation complete cloud" << endl;
     auto start = std::chrono::high_resolution_clock::now();
     // Estimación de normales
     pcl::PointCloud<pcl::Normal>::Ptr _cloud_normals (new pcl::PointCloud<pcl::Normal>);
@@ -443,17 +519,17 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
     // Segmentación basada en crecimiento de regiones
     vector<pcl::PointIndices> _regrow_clusters;
     pcl::RegionGrowing<PointT, pcl::Normal> reg;
-    reg.setMinClusterSize (50);
+    reg.setMinClusterSize (50); //50 original
     reg.setMaxClusterSize (25000);
     reg.setSearchMethod (tree);
     reg.setSmoothModeFlag(false);
     reg.setCurvatureTestFlag(true);
     reg.setResidualThreshold(false);
     reg.setCurvatureThreshold(1);
-    reg.setNumberOfNeighbours (10);
+    reg.setNumberOfNeighbours (10); //10 original
     reg.setInputCloud (_cloud_in);
     reg.setInputNormals (_cloud_normals);
-    reg.setSmoothnessThreshold (10.0 / 180.0 * M_PI);
+    reg.setSmoothnessThreshold (pcl::deg2rad(10.0)); //10 original
     reg.extract (_regrow_clusters);
 
     // cout << "Number of clusters: " << _regrow_clusters.size() << endl;
@@ -702,6 +778,34 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
     return eigenValuesPCA;
   }
 
+  struct eig_decomp
+  {
+    Eigen::Vector3f values;
+    Eigen::Matrix3f vectors;
+  };
+
+  eig_decomp
+  compute_eigen_decomposition(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices, bool normalize = true)
+  {
+    Eigen::Vector4f xyz_centroid;
+    PointCloud::Ptr tmp_cloud (new PointCloud);
+    tmp_cloud = arvc::extract_indices(_cloud_in, _indices);
+    pcl::compute3DCentroid(*tmp_cloud, xyz_centroid);
+
+    Eigen::Matrix3f covariance_matrix;
+    if (normalize)
+      pcl::computeCovarianceMatrixNormalized (*tmp_cloud, xyz_centroid, covariance_matrix); 
+    else
+      pcl::computeCovarianceMatrix (*tmp_cloud, xyz_centroid, covariance_matrix); 
+
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance_matrix, Eigen::ComputeEigenvectors);
+
+    eig_decomp eigen_decomp;
+    eigen_decomp.values = eigen_solver.eigenvalues();
+    eigen_decomp.vectors = eigen_solver.eigenvectors();
+
+    return eigen_decomp;
+  }
 
   /**
    * @brief Filters each cluster by its eigen values
@@ -845,6 +949,7 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
     }
     return valid_clusters;
   }
+
 
   pair<vector<int>, bool>
   validate_clusters_hybrid_tmp(PointCloud::Ptr &_cloud_in, vector<pcl::PointIndices> &clusters, float _ratio_threshold, float _module_threshold)
@@ -1093,12 +1198,8 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
     
     return _conf_matrix;
   }
-  /**
-   * @brief Returns a Voxelized PointCloud
-   * 
-   * @param cloud_in 
-   * @return pcl::PointCloud<pcl::PointXYZ>::Ptr
-   */
+
+
   void 
   writeCloud (pcl::PointCloud<pcl::PointXYZLNormal>::Ptr &cloud_in, fs::path entry)
   {
@@ -1486,19 +1587,6 @@ void print_vector(vector<float> _vector)
   }
 
 
-
-  template<typename T>
-  void remove_values_from_vector(std::vector<T>& values, const std::vector<T>& to_remove)
-  {
-    std::unordered_set<T> set(to_remove.begin(), to_remove.end());
-
-    auto new_end = std::remove_if(values.begin(), values.end(), [&](const T& value) {
-      return set.find(value) != set.end(); 
-      });
-
-    values.erase(new_end, values.end());
-  }
-
   pcl::Indices get_cloud_indices(const PointCloud::Ptr &_cloud_in){
     pcl::Indices indices;
     indices.resize(_cloud_in->size());
@@ -1549,7 +1637,7 @@ void print_vector(vector<float> _vector)
 
 
 
-#include <arvc_console.hpp>
+// #include <arvc_console.hpp>
 
 #include <arvc_axes3d.hpp>
   /* class axes3d
@@ -1635,7 +1723,7 @@ void print_vector(vector<float> _vector)
   } */
 
 
-#include "arvc_color.hpp"
+// #include "arvc_color.hpp"
 /*   class color
   {
     public:
@@ -1684,21 +1772,19 @@ void print_vector(vector<float> _vector)
   const arvc::color arvc::color::WHITE_COLOR = arvc::color(255,255,255); */
 
 
-  class direction
+/*   class direction
 
   {
-  private:
-    /* data */
   public:
-    direction(/* args */){}
+    direction(){}
 
     ~direction(){}    
     Eigen::Vector3f vector;
     arvc::color color;
   };
+ */
 
-
-#include "arvc_plane.hpp"
+// #include "arvc_plane.hpp"
 /*   class plane
   {
     public:
@@ -1820,7 +1906,7 @@ void print_vector(vector<float> _vector)
   }; */
 
 
-#include <arvc_viewer.hpp>
+// #include <arvc_viewer.hpp>
   /* class viewer {
     private:
       pcl::visualization::PCLVisualizer::Ptr view;
