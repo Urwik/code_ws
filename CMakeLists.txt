@@ -3,17 +3,31 @@ project(codeUtilities VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+# Setting compile flags based on build type
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")  # Debug information, no optimization
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")  # Optimized code for Release mode
+
+# Apply the flags depending on build type
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
+
 
 # find_package(PCL 1.3 REQUIRED COMPONENTS common io filters visualization)
 # find_package(catkin REQUIRED rosbag sensor_msgs std_msgs roscpp)
 find_package(PCL 1.3 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(gazebo REQUIRED)
+find_package(Threads REQUIRED)
 
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS})
-link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS})
-add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS} ${GAZEBO_DEFINITIONS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS} ${Threads_INCLUDE_DIRS})
+link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS} ${Threads_LIBRARY_DIRS})
+add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS} ${GAZEBO_DEFINITIONS} ${Threads_DEFINITIONS})
 
 # BAGFILES ....................................................................#
 add_executable(arvc_remove_dot_from_extracted_bag_filenames src/bagfiles/remove_dot_from_extracted_bag_filenames.cpp)
@@ -53,6 +67,9 @@ target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 
 add_executable(arvc_compute_normals src/pointclouds/features/compute_normals.cpp)
 target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
+
+# add_executable(arvc_normal_estimation src/pointclouds/features/compute_normals.cpp)
+# target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 
 # add_executable(arvc_compute_normals_XYZ src/pointclouds/compute_normals_XYZ.cpp)
 # target_link_libraries(arvc_compute_normals_XYZ ${PCL_LIBRARIES})
@@ -116,8 +133,8 @@ target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRA
 add_executable(arvc_ground_segmentation_and_filtering src/pointclouds/segmentation/ground_segmentation_and_filtering.cpp)
 target_link_libraries(arvc_ground_segmentation_and_filtering ${PCL_LIBRARIES})
 
-add_executable(arvc_main src/main.cpp)
-target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-
 add_executable(arvc_truss_plane_detector src/truss_plane_detector.cpp)
 target_link_libraries(arvc_truss_plane_detector ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${GAZEBO_LIBRARIES} ${Eigen3_LIBRARIES})
+
+add_executable(arvc_main src/main.cpp)
+target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES} Threads::Threads)
