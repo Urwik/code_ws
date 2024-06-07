@@ -12,12 +12,13 @@ void writeCloud(typename pcl::PointCloud<PointT>::Ptr &cloud_in, fs::path entry,
 {
   pcl::PLYWriter ply_writer;
   
-  fs::path abs_file_path = fs::current_path().parent_path() / folder_name;
-  if (!fs::exists(abs_file_path)) 
-    fs::create_directory(abs_file_path);
+  fs::path dir_path = fs::absolute(entry).parent_path().parent_path() / folder_name;
+
+  if (!fs::exists(dir_path)) 
+    fs::create_directory(dir_path);
 
   std::string filename = entry.stem().string() + ".ply";
   
-  abs_file_path = abs_file_path / filename;
+  fs::path abs_file_path = dir_path / filename;
   ply_writer.write(abs_file_path, *cloud_in, true);
 }
