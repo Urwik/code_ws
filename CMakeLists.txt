@@ -65,7 +65,7 @@ target_link_libraries(arvc_check_duplicated_clouds ${PCL_LIBRARIES})
 add_executable(arvc_pcd2ply src/pointclouds/transforms/pcd2ply.cpp)
 target_link_libraries(arvc_pcd2ply ${PCL_LIBRARIES})
 
-add_executable(arvc_compute_normals src/pointclouds/features/compute_normals.cpp)
+add_executable(arvc_compute_normals src/compute_normals.cpp)
 target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 
 # add_executable(arvc_normal_estimation src/pointclouds/features/compute_normals.cpp)
@@ -136,5 +136,11 @@ target_link_libraries(arvc_ground_segmentation_and_filtering ${PCL_LIBRARIES})
 add_executable(arvc_truss_plane_detector src/truss_plane_detector.cpp)
 target_link_libraries(arvc_truss_plane_detector ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${GAZEBO_LIBRARIES} ${Eigen3_LIBRARIES})
 
+add_executable(arvc_random_downsample src/random_downsample.cpp)
+target_link_libraries(arvc_random_downsample ${catkin_LIBRARIES} ${PCL_LIBRARIES} )
+
 add_executable(arvc_main src/main.cpp)
 target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES} Threads::Threads)
+
+add_executable(arvc_sort_cloud_by_distance src/sort_cloud_by_distance.cpp)
+target_link_libraries(arvc_sort_cloud_by_distance ${PCL_LIBRARIES})
