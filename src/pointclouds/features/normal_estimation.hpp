@@ -50,16 +50,15 @@ normalsByNeighbours(typename pcl::PointCloud<PointT>::Ptr &_cloud_in, int neighb
 
   if (remove_nan) {
     pcl::Indices indices;
-    pcl::removeNaNNormalsFromPointCloud<PointT>(*cloud_out, *cloud_out, indices);
+    pcl::removeNaNNormalsFromPointCloud<PointLN>(*cloud_out, *cloud_out, indices);
   }
-
 
   return cloud_out;
 }
 
 template<typename PointT>
 PointCloudLN::Ptr 
-normalsByRadius(typename pcl::PointCloud<PointT>::Ptr &_cloud_in, float _radius = 0.05 , bool remove_nan = true)
+normalsByRadius(typename pcl::PointCloud<PointT>::Ptr &_cloud_in, float _radius = 0.05 , bool remove_nan = false)
 {
   pcl::PointCloud<pcl::PointXYZL>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZL>);
   pcl::copyPointCloud(*_cloud_in, *cloud_in);
@@ -78,7 +77,8 @@ normalsByRadius(typename pcl::PointCloud<PointT>::Ptr &_cloud_in, float _radius 
 
   if (remove_nan) {
     pcl::Indices indices;
-    pcl::removeNaNNormalsFromPointCloud<PointT>(*cloud_out, *cloud_out, indices);
+    pcl::removeNaNFromPointCloud(*cloud_out, *cloud_out, indices);
+    pcl::removeNaNNormalsFromPointCloud<PointLN>(*cloud_out, *cloud_out, indices);
   }
 
   return cloud_out;

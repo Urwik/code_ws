@@ -22,3 +22,11 @@ void writeCloud(typename pcl::PointCloud<PointT>::Ptr &cloud_in, fs::path entry,
   fs::path abs_file_path = dir_path / filename;
   ply_writer.write(abs_file_path, *cloud_in, true);
 }
+
+template<typename PointT>
+void rewriteCloud(typename pcl::PointCloud<PointT>::Ptr &cloud_in, fs::path entry)
+{
+  pcl::PLYWriter ply_writer;
+  
+  ply_writer.write(entry.string(), *cloud_in, true);
+}

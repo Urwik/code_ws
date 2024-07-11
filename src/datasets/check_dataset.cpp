@@ -18,6 +18,8 @@
 
   // PCL FILTERS
 #include <pcl/filters/normal_space.h>
+#include "../pointclouds/read_cloud.hpp"
+#include "tqdm.hpp"
 
 namespace fs = std::filesystem;
 
@@ -30,8 +32,8 @@ namespace fs = std::filesystem;
 #define YELLOW  "\033[33m"
 #define BLUE    "\033[34m"
 
-typedef pcl::PointXYZLNormal PointT;
-typedef pcl::PointCloud<PointT> PointCloud;
+typedef pcl::PointXYZLNormal PointLN;
+typedef pcl::PointCloud<PointLN> PointCloud;
 
 pcl::PCDReader pcd_reader;
 pcl::PLYReader ply_reader;
@@ -42,30 +44,31 @@ std::vector<std::string> error_files;
 std::vector<std::string> readed_files;
 std::vector<std::string> duplicated_files;
 
-int check_cloud(fs::path input_file)
+template<typename T>
+int check_num_points(typename pcl::PointCloud<T>::Ptr cloud_in, int target_points)
 {
-  PointCloud::Ptr pc (new PointCloud);
-  std::string file_ext = input_file.extension();
-  int correct = 0;
+  // if (cloud_in->points.size() == 0){
+  //   return 5;
+  // }
 
-  if (file_ext == ".pcd")
-    correct = pcd_reader.read(input_file.string(), *pc);
-  else if (file_ext == ".ply")
-   correct =  ply_reader.read(input_file.string(), *pc);
-  else
+  if (cloud_in->points.size() != target_points){
     return -1;
-
-
-  if (correct == 0)
-  {
-    if (pc->points.size() != 25000)
-      cloud_names.push_back(input_file.stem().string());
-
-    n_points.push_back(pc->points.size());
   }
   else
-    std::cout << "Error in Cloud: " << input_file.stem().string() << std::endl;
+    return 0;
+}
 
+
+template<typename T>
+int check_nan_points(typename pcl::PointCloud<T>::Ptr cloud_in)
+{
+  for (const T& point : cloud_in->points)
+  {
+    if(std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z) ||  std::isnan(point.label) || std::isnan(point.normal_x) || std::isnan(point.normal_y) || std::isnan(point.normal_z) || std::isnan(point.curvature))
+    {
+      return -1;
+    }
+  }
   return 0;
 }
 
@@ -132,63 +135,85 @@ void check_duplicated(fs::path input_file_)
 
 int main(int argc, char **argv)
 {
-  current_path = fs::current_path();
+  pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);  
+  pcl::PointCloud<pcl::PointXYZLNormal>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZLNormal>);
+  pcl::PointCloud<pcl::PointXYZLNormal>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZLNormal>);
 
+  fs::path current_dir = fs::current_path();
+  std::string dataset_type = "ply_xyzln_fixedSize";
+
+  std::vector<fs::path> cloud_paths;
+
+  std::vector<fs::path> empty_clouds;
+  
   if(argc < 2)
   {
-    // check_filenames(current_path);
-
-    for(const auto &entry : fs::directory_iterator(current_path))
+    std::cout << "Getting cloud paths..." << std::endl;
+    for(const auto &entry : fs::directory_iterator(current_dir))
     {
-      check_labels(entry.path());
-      check_cloud(entry.path());
+      if (entry.is_directory()){
+
+        fs::path set_dir = entry.path() / dataset_type;
+        std::cout << "Getting clouds from set: " << set_dir << std::endl;
+
+        for(const auto &cloud_entry : fs::directory_iterator(set_dir)) {
+          if(cloud_entry.path().extension().string() == ".pcd" || cloud_entry.path().extension().string() == ".ply"){
+            cloud_paths.push_back(cloud_entry.path());
+          }
+        }
+      }
+    }
+    
+    // std::ifstream file("/home/arvc/workSpaces/code_ws/examples/pointclouds/empty_clouds.txt");
+    // std::string line;
+
+    // while (std::getline(file, line))
+    // {
+    //   cloud_paths.push_back(line);
+    // }
+    // file.close();
+
+    std::cout << "Checking clouds..." << std::endl;
+    int num_points_correct = 0;
+    int nan_points_correct = 0;
+    for(const fs::path &cloud_entry : cloud_paths)
+    {
+      cloud_in = readPointCloud<PointLN>(cloud_entry.string());
+
+      num_points_correct = check_num_points<PointLN>(cloud_in, 20000);
+      nan_points_correct = check_nan_points<PointLN>(cloud_in);
+
+      // if (num_points_correct == -1)
+      // {
+      //   std::cout << RED << "Error in number of points: " << cloud_entry.string() << " | N_points: " << cloud_in->size() << RESET << std::endl;
+      // }
+
+      if (nan_points_correct == -1)
+      {
+        std::cout << RED << "Error in nan points: " << cloud_entry.string() << RESET << std::endl;
+      }
+
+      // if (num_points_correct == 5)
+      // {
+      //   std::cout << RED << "Empty cloud: " << cloud_entry.string() << RESET << std::endl;
+      //   empty_clouds.push_back(cloud_entry);
+      // }
     }
   }
-  else
-  {
-    fs::path input_dir = argv[1];
-    check_labels(input_dir);
-    check_cloud(input_dir);
-  }
 
-  int total = 0;
+  
+  // fs::path empty_clouds_file_path = "/home/arvc/workSpaces/code_ws/examples/pointclouds/empty_clouds.txt";
 
-  for(int point : n_points)
-    total += point;
+  // std::cout << "Writing discarded clouds to " << empty_clouds_file_path << std::endl;
 
-  double mean = total / n_points.size();
-  auto max = *std::max_element(n_points.begin(), n_points.end());
-  auto min = *std::min_element(n_points.begin(), n_points.end());
-
-
-  std::cout << "Max: " << max << std::endl;
-  std::cout << "Min: " << min << std::endl;
-  std::cout << "Mean: " << mean << std::endl;
-
-  if(!error_files.empty())
-  {
-    std::cout << "Files with error in its labels: " << std::endl;
-    for (std::string& file : error_files)
-      std::cout << file << std::endl;      
-  }
-
-  if(!duplicated_files.empty())
-  {
-    std::cout << "Duplicated files: " << std::endl;
-    for (std::string& file : duplicated_files)
-      std::cout << file << std::endl;      
-  }
-
-
-  if(max != 25000 || min != 25000 || mean != 25000)
-  {
-    std::cout << "Dataset contains errors:" << std::endl;
-    std::cout << "Clouds with wrong num of points" << std::endl;
-    for(auto name : cloud_names)
-      std::cout << name << std::endl;
-  }
-  else
-    std::cout << "Dataset is correct" << std::endl;
+  // std::ofstream file(empty_clouds_file_path);
+  // for (const fs::path &cloud_path : empty_clouds)
+  // {
+  //   file << cloud_path.string() << std::endl;
+  // }
+  // file.close();
+  std::cout << "Number of clouds: " << cloud_paths.size() << std::endl;
+  std::cout << "Completed check." << std::endl;
 
   return 0;
 }
