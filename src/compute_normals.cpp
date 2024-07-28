@@ -39,7 +39,6 @@ int main(int argc, char **argv)
 {
     const std::string TARGET_DIR_NAME = "pcd";
     const std::string OUTPUT_DIR_NAME = "ply_xyzln";
-    const int FIXED_NUM_POINTS = 20000;
     typedef pcl::PointXYZL PointIN;
     typedef pcl::PointXYZLNormal PointOUT;
 
@@ -61,6 +60,7 @@ int main(int argc, char **argv)
     if (argc < 2)
     {
         std::vector<fs::path> cloud_paths;
+
         for (const auto &entry : fs::directory_iterator(current_dir))
         {
             // if(entry.path().extension() == ".pcd" || entry.path().extension() == ".ply")
@@ -80,6 +80,28 @@ int main(int argc, char **argv)
                     }
                 }
             }
+
+            else if (entry.is_regular_file()) {
+                if (entry.path().extension().string() == ".pcd" || entry.path().extension().string() == ".ply")
+                    cloud_paths.push_back(entry.path());
+            }
+            {
+                fs::path set_dir = entry.path() / TARGET_DIR_NAME;
+                std::cout << "Getting clouds from set: " << set_dir << std::endl;
+
+                for (const auto &cloud_entry : fs::directory_iterator(set_dir))
+                {
+                    if (cloud_entry.path().extension().string() == ".pcd" || cloud_entry.path().extension().string() == ".ply")
+                    {
+                        cloud_paths.push_back(cloud_entry.path());
+                    }
+                }
+            }
+
+            else if (entry.is_regular_file()) {
+                if (entry.path().extension().string() == ".pcd" || entry.path().extension().string() == ".ply")
+                    cloud_paths.push_back(entry.path());
+            }
         }
 
         std::cout << "Reading clouds..." << std::endl;
@@ -92,23 +114,7 @@ int main(int argc, char **argv)
 
             cloud_out = normalsByNeighbours<PointIN>(cloud_in, 30, true);
             writeCloud<PointOUT>(cloud_out, cloud_entry, OUTPUT_DIR_NAME);
-
-            // int cloud_size = cloud_in->points.size();
-
-            // if (cloud_size < FIXED_NUM_POINTS) {
-            // // std::cout << std::endl << "Cloud " << cloud_entry.string() << " has less than " << FIXED_NUM_POINTS << " points. Discarding..." << std::endl;
-            // discarded_clouds.push_back(cloud_entry);
-            // }
-            // else
-            // {
-            // accepted_clouds.push_back(cloud_entry);
-            // // cloud_out = normalsByRadius<PointLN>(cloud_in, 0.05, true);
-            // cloud_out = normalsByNeighbours<PointIN>(cloud_in, 30, true);
-            // writeCloud<PointOUT>(cloud_out, cloud_entry, OUTPUT_DIR_NAME);
-            // }
         }
-
-        // writeDiscardedClouds(discarded_clouds);
     }
 
     //--------------------------------------------------------------------------------//

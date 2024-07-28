@@ -80,6 +80,10 @@ int main(int argc, char **argv)
                     }
                 }
             }
+            else if (entry.is_regular_file()) {
+                if (entry.path().extension().string() == ".pcd" || entry.path().extension().string() == ".ply")
+                    cloud_paths.push_back(entry.path());
+            }
         }
 
 
