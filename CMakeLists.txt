@@ -109,6 +109,10 @@ target_link_libraries(arvc_plot_label_random_color ${PCL_LIBRARIES})
 
 add_executable(arvc_plot_correct_vs_wrong src/pointclouds/visualization/plot_correct_vs_wrong.cpp)
 target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
+
+add_executable(arvc_plot_by_confusion_matrix src/pointclouds/visualization/plot_by_confusion_matrix.cpp)
+target_link_libraries(arvc_plot_by_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
+
 # add_executable(arvc_replace_field src/pointclouds/replace_field.cpp)
 # target_link_libraries(arvc_replace_field ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
