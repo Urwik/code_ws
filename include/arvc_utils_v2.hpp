@@ -324,7 +324,7 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
   get_max_length(PointCloud::Ptr &cloud)
   {
 
-    float _max_length;
+    // float _max_length;
 
     // Compute principal directions
     Eigen::Vector4f pcaCentroid;
@@ -693,26 +693,26 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
    * @param distThreshold 
    * @return pcl::PointIndices::Ptr 
    */
-  pair<pcl::IndicesPtr, pcl::IndicesPtr>
-  get_points_near_plane(PointCloud::Ptr &_cloud_in, pcl::ModelCoefficientsPtr &_plane_coeffs, float distThreshold = 0.5f)
-  {
-    Eigen::Vector4f coefficients(_plane_coeffs->values.data());
-    pcl::PointXYZ point;
-    pcl::IndicesPtr _plane_inliers (new pcl::Indices);
-    pcl::IndicesPtr _plane_outliers (new pcl::Indices);
+  // pair<pcl::IndicesPtr, pcl::IndicesPtr>
+  // get_points_near_plane(PointCloud::Ptr &_cloud_in, pcl::ModelCoefficientsPtr &_plane_coeffs, float distThreshold = 0.5f)
+  // {
+  //   Eigen::Vector4f coefficients(_plane_coeffs->values.data());
+  //   pcl::PointXYZ point;
+  //   pcl::IndicesPtr _plane_inliers (new pcl::Indices);
+  //   pcl::IndicesPtr _plane_outliers (new pcl::Indices);
 
-    for (size_t indx = 0; indx < _cloud_in->points.size(); indx++)
-    {
-      point = _cloud_in->points[indx];
-      float distance = pcl::pointToPlaneDistance(point, coefficients);
-      if (pcl::pointToPlaneDistance(point, coefficients) <= distThreshold)
-        _plane_inliers->push_back(indx);
-      else
-        _plane_outliers->push_back(indx);
-    }
+  //   for (size_t indx = 0; indx < _cloud_in->points.size(); indx++)
+  //   {
+  //     point = _cloud_in->points[indx];
+  //     float distance = pcl::pointToPlaneDistance(point, coefficients);
+  //     if (pcl::pointToPlaneDistance(point, coefficients) <= distThreshold)
+  //       _plane_inliers->push_back(indx);
+  //     else
+  //       _plane_outliers->push_back(indx);
+  //   }
 
-    return pair<pcl::IndicesPtr, pcl::IndicesPtr> {_plane_inliers, _plane_outliers};
-  }
+  //   return pair<pcl::IndicesPtr, pcl::IndicesPtr> {_plane_inliers, _plane_outliers};
+  // }
 
 
   /**
@@ -723,34 +723,34 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
    * @param distThreshold 
    * @return pcl::PointIndices::Ptr 
    */
-  pair<pcl::IndicesPtr, pcl::IndicesPtr>
-  get_points_near_plane(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices, pcl::ModelCoefficientsPtr &_plane_coeffs, float distThreshold = 0.5f)
-  {
-    Eigen::Vector4f coefficients(_plane_coeffs->values.data());
-    pcl::PointXYZ point;
-    pcl::IndicesPtr _plane_inliers (new pcl::Indices);
-    pcl::IndicesPtr _plane_outliers (new pcl::Indices);
+  // pair<pcl::IndicesPtr, pcl::IndicesPtr>
+  // get_points_near_plane(PointCloud::Ptr &_cloud_in, pcl::IndicesPtr &_indices, pcl::ModelCoefficientsPtr &_plane_coeffs, float distThreshold = 0.5f)
+  // {
+  //   Eigen::Vector4f coefficients(_plane_coeffs->values.data());
+  //   pcl::PointXYZ point;
+  //   pcl::IndicesPtr _plane_inliers (new pcl::Indices);
+  //   pcl::IndicesPtr _plane_outliers (new pcl::Indices);
   
   
-    // PointCloud::Ptr _cloud_out (new PointCloud);
-    // pcl::ExtractIndices<PointT> extract;
-    // extract.setInputCloud(_cloud_in);
-    // extract.setIndices(_indices);
-    // extract.setNegative(negative);
-    // extract.filter(*_cloud_out);
+  //   // PointCloud::Ptr _cloud_out (new PointCloud);
+  //   // pcl::ExtractIndices<PointT> extract;
+  //   // extract.setInputCloud(_cloud_in);
+  //   // extract.setIndices(_indices);
+  //   // extract.setNegative(negative);
+  //   // extract.filter(*_cloud_out);
 
-    for (int indx : *_indices)
-    {
-      point = _cloud_in->points[indx];
-      float distance = pcl::pointToPlaneDistance(point, coefficients);
-      if (pcl::pointToPlaneDistance(point, coefficients) <= distThreshold)
-        _plane_inliers->push_back(indx);
-      else
-        _plane_outliers->push_back(indx);
-    }
+  //   for (int indx : *_indices)
+  //   {
+  //     point = _cloud_in->points[indx];
+  //     float distance = pcl::pointToPlaneDistance(point, coefficients);
+  //     if (pcl::pointToPlaneDistance(point, coefficients) <= distThreshold)
+  //       _plane_inliers->push_back(indx);
+  //     else
+  //       _plane_outliers->push_back(indx);
+  //   }
 
-    return pair<pcl::IndicesPtr, pcl::IndicesPtr> {_plane_inliers, _plane_outliers};
-  }
+  //   return pair<pcl::IndicesPtr, pcl::IndicesPtr> {_plane_inliers, _plane_outliers};
+  // }
 
   /**
    * @brief Computes the eigenvalues of a PointCloud
@@ -859,7 +859,7 @@ typename pcl::PointCloud<PointT>::Ptr readPointCloud(const std::string& path)
       *current_cluster = cluster.indices;
 
       current_cluster_cloud = arvc::extract_indices(_cloud_in, current_cluster);
-      auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
+      // auto eig_values = arvc::compute_eigenvalues(_cloud_in, current_cluster, false);
 
       // // FOR VISUALIZATION
       // remain_input_cloud = arvc::extract_indices(_cloud_in, current_cluster, true); //FOR VISUALIZTION
@@ -1610,13 +1610,13 @@ void print_vector(vector<float> _vector)
   }
 
 
-  PointCloud::Ptr uniform_sample(const PointCloud::Ptr& _cloud_in, const float& _grid_size){
+  PointCloud::Ptr uniform_sample(const PointCloud::Ptr& _cloud_in, const float& _radius_size){
     
     pcl::UniformSampling<PointT> us;
     PointCloud::Ptr _cloud_out (new PointCloud);
 
     us.setInputCloud(_cloud_in);
-    us.setRadiusSearch(0.01);
+    us.setRadiusSearch(_radius_size);
     us.filter(*_cloud_out);
 
     return _cloud_out;

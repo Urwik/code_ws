@@ -76,7 +76,6 @@ int main(int argc, char **argv)
 
 
   my_vis.setBackgroundColor(1,1,1);
-  
   my_vis.addCoordinateSystem(0.8, "sensor_origin");
   // auto pos = cloud_in->sensor_origin_;
   // auto ori = cloud_in->sensor_orientation_;
