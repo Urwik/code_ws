@@ -124,17 +124,15 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
     return;
   }
 
-  PointCloud::Ptr error_cloud (new PointCloud);
-  PointCloud::Ptr truss_cloud (new PointCloud);
-  PointCloud::Ptr ground_cloud (new PointCloud);
-  pcl::IndicesPtr error_idx (new pcl::Indices);
+  PointCloud::Ptr tp_cloud (new PointCloud);
+  PointCloud::Ptr tn_cloud (new PointCloud);
+  PointCloud::Ptr fp_cloud (new PointCloud);
+  PointCloud::Ptr fn_cloud (new PointCloud);
 
-  error_idx->insert(error_idx->end(), cm_indices.fp_idx->begin(), cm_indices.fp_idx->end());
-  error_idx->insert(error_idx->end(), cm_indices.fn_idx->begin(), cm_indices.fn_idx->end());
-
-  truss_cloud = arvc::extract_indices(cloud_in, cm_indices.tp_idx, false);
-  ground_cloud = arvc::extract_indices(cloud_in, cm_indices.tn_idx, false);
-  error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
+  tp_cloud = arvc::extract_indices(cloud_in, cm_indices.tp_idx, false);
+  tn_cloud = arvc::extract_indices(cloud_in, cm_indices.tn_idx, false);
+  fp_cloud = arvc::extract_indices(cloud_in, cm_indices.fp_idx, false);
+  fn_cloud = arvc::extract_indices(cloud_in, cm_indices.fn_idx, false);
 
   // -------------------------------- // 
   // Visualization Stuff
@@ -160,18 +158,20 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
   // Eigen::Vector3f position(pos[0], pos[1], pos[2]);
   // my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
 
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 50,190,50);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 180,10,10);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> tp_color (tp_cloud, 50,190,50);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> tn_color (tn_cloud, 100,100,100);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> fp_color (fp_cloud, 200,10,10);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> fn_color (fn_cloud, 10,10,200);
 
-  my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
-  my_vis.addPointCloud(ground_cloud, ground_color, "ground_cloud");
-  my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
+  my_vis.addPointCloud(tp_cloud, tp_color, "tp_cloud");
+  my_vis.addPointCloud(tn_cloud, tn_color, "tn_cloud");
+  my_vis.addPointCloud(fp_cloud, fp_color, "fp_cloud");
+  my_vis.addPointCloud(fn_cloud, fn_color, "fn_cloud");
 
-  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "truss_cloud");
-  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "ground_cloud");
-  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "error_cloud");
-
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "tp_cloud");
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "tn_cloud");
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "fp_cloud");
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "fn_cloud");
 
   while (!my_vis.wasStopped())
   {
