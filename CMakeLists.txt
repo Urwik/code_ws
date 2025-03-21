@@ -23,11 +23,15 @@ find_package(PCL 1.3 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(gazebo REQUIRED)
 find_package(Threads REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
+include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS} ${Threads_INCLUDE_DIRS} )
+link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS} ${Threads_LIBRARY_DIRS} )
+add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS} ${GAZEBO_DEFINITIONS} ${Threads_DEFINITIONS} )
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS} ${Threads_INCLUDE_DIRS})
-link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS} ${Threads_LIBRARY_DIRS})
-add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS} ${GAZEBO_DEFINITIONS} ${Threads_DEFINITIONS})
+include_directories(${YAML_CPP_INCLUDE_DIRS})
+link_directories(${YAML_CPP_INCLUDE_DIRS})
+add_definitions(${YAML_CPP_DEFINITIONS})
 
 # BAGFILES ....................................................................#
 add_executable(arvc_remove_dot_from_extracted_bag_filenames src/bagfiles/remove_dot_from_extracted_bag_filenames.cpp)
@@ -108,7 +112,7 @@ add_executable(arvc_plot_label_random_color src/pointclouds/visualization/plot_l
 target_link_libraries(arvc_plot_label_random_color ${PCL_LIBRARIES})
 
 add_executable(arvc_plot_correct_vs_wrong src/pointclouds/visualization/plot_correct_vs_wrong.cpp)
-target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
+target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 add_executable(arvc_plot_by_confusion_matrix src/pointclouds/visualization/plot_by_confusion_matrix.cpp)
 target_link_libraries(arvc_plot_by_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
