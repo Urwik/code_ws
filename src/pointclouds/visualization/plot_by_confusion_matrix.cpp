@@ -124,17 +124,19 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
     return;
   }
 
-  PointCloud::Ptr error_cloud (new PointCloud);
-  PointCloud::Ptr truss_cloud (new PointCloud);
-  PointCloud::Ptr ground_cloud (new PointCloud);
+  PointCloud::Ptr tp_cloud (new PointCloud);
+  PointCloud::Ptr tn_cloud (new PointCloud);
+  PointCloud::Ptr fp_cloud (new PointCloud);
+  PointCloud::Ptr fn_cloud (new PointCloud);
   pcl::IndicesPtr error_idx (new pcl::Indices);
 
   error_idx->insert(error_idx->end(), cm_indices.fp_idx->begin(), cm_indices.fp_idx->end());
   error_idx->insert(error_idx->end(), cm_indices.fn_idx->begin(), cm_indices.fn_idx->end());
 
-  truss_cloud = arvc::extract_indices(cloud_in, cm_indices.tp_idx, false);
-  ground_cloud = arvc::extract_indices(cloud_in, cm_indices.tn_idx, false);
-  error_cloud = arvc::extract_indices(cloud_in, error_idx, false);
+  tp_cloud = arvc::extract_indices(cloud_in, cm_indices.tp_idx, false);
+  tn_cloud = arvc::extract_indices(cloud_in, cm_indices.tn_idx, false);
+  fp_cloud = arvc::extract_indices(cloud_in, cm_indices.fp_idx, false);
+  fn_cloud = arvc::extract_indices(cloud_in, cm_indices.fn_idx, false);
 
   // -------------------------------- // 
   // Visualization Stuff
@@ -154,23 +156,31 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 
   // my_vis.setFullScreen(true);
   my_vis.setBackgroundColor(1,1,1);
-  // my_vis.addCoordinateSystem(0.8, "sensor_origin");
-  // auto pos = cloud_in->sensor_origin_;
-  // auto ori = cloud_in->sensor_orientation_;
-  // Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+
+  my_vis.addCoordinateSystem(1.5, "sensor_origin");
+  auto pos = cloud_in->sensor_origin_;
+  auto ori = cloud_in->sensor_orientation_;
+  Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+
+
+
   // my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
+  my_vis.addSphere(pcl::PointXYZ(.0,.0,.0), 0.1, 0, 0, 1, "sphere_origin");
 
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> truss_color (truss_cloud, 50,190,50);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> ground_color (ground_cloud, 100,100,100);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> error_color (error_cloud, 180,10,10);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> tp_color (tp_cloud, 76, 175, 80);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> tn_color (tn_cloud, 100,100,100);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> fp_color (fp_cloud, 211, 47, 47);
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> fn_color (fn_cloud, 255, 152, 0);
 
-  my_vis.addPointCloud(truss_cloud, truss_color, "truss_cloud");
-  my_vis.addPointCloud(ground_cloud, ground_color, "ground_cloud");
-  my_vis.addPointCloud(error_cloud, error_color, "error_cloud");
+  my_vis.addPointCloud(tp_cloud, tp_color, "tp_cloud");
+  my_vis.addPointCloud(tn_cloud, tn_color, "tn_cloud");
+  my_vis.addPointCloud(fp_cloud, fp_color, "fp_cloud");
+  my_vis.addPointCloud(fn_cloud, fn_color, "fn_cloud");
 
-  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "truss_cloud");
-  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "ground_cloud");
-  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "error_cloud");
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "tp_cloud");
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "tn_cloud");
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "fp_cloud");
+  my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "fn_cloud");
 
 
   while (!my_vis.wasStopped())
@@ -186,38 +196,54 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 
 int main()
 {
-  // std::vector<std::string> MODELS = {"PointNetBinSeg", "PointNet2BinSeg", "MinkUNet34C"};
-  // std::vector<std::string> MODELS = {"MinkUNet34C"};
-  std::vector<std::string> MODELS = {"PointNetBinSeg", "PointNet2BinSeg"};
-  
-
+  std::vector<std::string> MODELS = {"PointNetBinSeg", "PointNet2BinSeg", "MinkUNet34C", "PointTransformerV3"};
+  std::vector<std::string> FEATURES = {"c","nxnynz", "xyz", "xyzc", "xyznxnynz"};
   std::vector<std::string> DATASETS = {"orto", "crossed", "00", "01", "02", "03"};
   
-  std::string MODEL_NAME = MODELS[0];
-  std::string SET_NAME = DATASETS[0];
-  std::string SUFFIX = "ply_xyzln_fixedSize";
+  std::string MODEL_NAME = MODELS[3];
+  std::string FEATURE = FEATURES[0];
+  std::string SET_NAME = DATASETS[4];
+  std::string SUFFIX = "ply_xyzln";
+
+  // MULTIPLE MODELS AN FILES
+  // for (const std::string& model : MODELS)
+  // {
+  //   for (const std::string& dataset : DATASETS)
+  //   {
+  //     MODEL_NAME = model;
+  //     SET_NAME = dataset;
+
+  //     if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
+  //       SUFFIX = "ply_xyzln";
+
+  //     fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
+  //     fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/visualization/results/" + MODEL_NAME + "/" + FEATURE + "/" + SET_NAME);
+
+  //     for (const auto & entry : fs::directory_iterator(PRED_PATH))
+  //     {
+  //       if (entry.path().extension() == ".ply") {
+  //         std::string CLOUD_NAME = entry.path().stem().string();
+  //         plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
+  //       }
+  //     }
+  //   }
+  // }
 
 
-  for (const std::string& model : MODELS)
+  // SINGLE MODEL AND FILE
+  if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
+  SUFFIX = "ply_xyzln";
+
+  fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
+  fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/dl/results/" + MODEL_NAME + "/" + FEATURE + "/" + SET_NAME); // DL METHODS
+  // fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/analytical/results/" + SET_NAME);  // ANALYTICAL METHODS
+
+  
+  for (const auto & entry : fs::directory_iterator(PRED_PATH))
   {
-    for (const std::string& dataset : DATASETS)
-    {
-      MODEL_NAME = model;
-      SET_NAME = dataset;
-
-      if (MODEL_NAME == "MinkUNet34C")
-        SUFFIX = "ply_xyzln";
-
-      fs::path GT_PATH("/home/fran/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
-      fs::path PRED_PATH("/home/fran/datasets/complex_structure_inferences/" + MODEL_NAME + "/" + SET_NAME);
-
-      for (const auto & entry : fs::directory_iterator(PRED_PATH))
-      {
-        if (entry.path().extension() == ".ply") {
-          std::string CLOUD_NAME = entry.path().stem().string();
-          plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
-        }
-      }
+    if (entry.path().extension() == ".ply") {
+      std::string CLOUD_NAME = entry.path().stem().string();
+      plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
     }
   }
 
