@@ -1,21 +1,23 @@
 // C++
 #include <iostream>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <experimental/filesystem>
 #include <typeinfo>
 #include <string>
 #include <algorithm>
 
+namespace fs = std::filesystem;
+
 
 int main(int argc, char **argv)
 {
-  namespace fs = boost::filesystem;
-  fs::path mydir("/home/arvc/workSpaces/data/realsense/2022.07.27");
+
+  fs::path current_dir = fs::current_path();
   fs::directory_iterator end_iterator;
   std::vector<fs::directory_entry> files;
   std::string old_name;
 
-  for(auto const& dir_entry : fs::directory_iterator(mydir)){
+  for(auto const& dir_entry : fs::directory_iterator(current_dir)){
   
     if (dir_entry.path().extension() == ".pcd")
     {
