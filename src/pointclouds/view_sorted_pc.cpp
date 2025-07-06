@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  fs::path mydir("/home/arvc/workSpaces/data/realsense/2022.07.27");
+  fs::path mydir("/home/arvc/workspaces/data/realsense/2022.07.27");
   std::vector<std::string> filenames;
   std::string old_name;
 

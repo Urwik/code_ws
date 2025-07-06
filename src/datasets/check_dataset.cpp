@@ -164,7 +164,7 @@ int main(int argc, char **argv)
       }
     }
     
-    // std::ifstream file("/home/arvc/workSpaces/code_ws/examples/pointclouds/empty_clouds.txt");
+    // std::ifstream file("/home/arvc/workspaces/code_ws/examples/pointclouds/empty_clouds.txt");
     // std::string line;
 
     // while (std::getline(file, line))
@@ -202,7 +202,7 @@ int main(int argc, char **argv)
   }
 
   
-  // fs::path empty_clouds_file_path = "/home/arvc/workSpaces/code_ws/examples/pointclouds/empty_clouds.txt";
+  // fs::path empty_clouds_file_path = "/home/arvc/workspaces/code_ws/examples/pointclouds/empty_clouds.txt";
 
   // std::cout << "Writing discarded clouds to " << empty_clouds_file_path << std::endl;
 

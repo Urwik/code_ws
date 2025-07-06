@@ -138,6 +138,10 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
   fp_cloud = arvc::extract_indices(cloud_in, cm_indices.fp_idx, false);
   fn_cloud = arvc::extract_indices(cloud_in, cm_indices.fn_idx, false);
 
+
+  std::cout << CLOUD_NAME << " -- Miou: " << (float)cm_indices.tp_idx->size() / (cm_indices.tp_idx->size() + cm_indices.fp_idx->size() + cm_indices.fn_idx->size()) << std::endl;
+  std::cout << CLOUD_NAME << " -- Recall: " << (float)cm_indices.tp_idx->size() / (cm_indices.tp_idx->size() + cm_indices.fn_idx->size()) << std::endl;
+
   // -------------------------------- // 
   // Visualization Stuff
   // -------------------------------- //
@@ -165,7 +169,7 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 
 
   // my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
-  my_vis.addSphere(pcl::PointXYZ(.0,.0,.0), 0.1, 0, 0, 1, "sphere_origin");
+  my_vis.addSphere(pcl::PointXYZ(.0,.0,.0), 0.2, 1, 0, 1, "sphere_origin");
 
   pcl::visualization::PointCloudColorHandlerCustom<PointT> tp_color (tp_cloud, 76, 175, 80);
   pcl::visualization::PointCloudColorHandlerCustom<PointT> tn_color (tn_cloud, 100,100,100);
@@ -202,7 +206,7 @@ int main()
   
   std::string MODEL_NAME = MODELS[3];
   std::string FEATURE = FEATURES[0];
-  std::string SET_NAME = DATASETS[4];
+  std::string SET_NAME = DATASETS[0];
   std::string SUFFIX = "ply_xyzln";
 
   // MULTIPLE MODELS AN FILES
