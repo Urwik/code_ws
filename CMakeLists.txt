@@ -18,16 +18,17 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
 
 
 # find_package(PCL 1.3 REQUIRED COMPONENTS common io filters visualization)
-# find_package(catkin REQUIRED rosbag sensor_msgs std_msgs roscpp)
+find_package(catkin REQUIRED rosbag sensor_msgs std_msgs roscpp cv_bridge)
 find_package(PCL 1.3 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(gazebo REQUIRED)
 find_package(Threads REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(OpenCV REQUIRED)
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS} ${Threads_INCLUDE_DIRS} )
-link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS} ${Threads_LIBRARY_DIRS} )
-add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS} ${GAZEBO_DEFINITIONS} ${Threads_DEFINITIONS} )
+include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS} ${Threads_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS} ${Threads_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
+add_definitions(${catkin_DEFINITIONS} ${PCL_DEFINITIONS} ${Eigen3_DEFINITIONS} ${GAZEBO_DEFINITIONS} ${Threads_DEFINITIONS} ${OpenCV_DEFINITIONS})
 
 include_directories(${YAML_CPP_INCLUDE_DIRS})
 link_directories(${YAML_CPP_INCLUDE_DIRS})
@@ -37,8 +38,8 @@ add_definitions(${YAML_CPP_DEFINITIONS})
 add_executable(arvc_remove_dot_from_extracted_bag_filenames src/bagfiles/remove_dot_from_extracted_bag_filenames.cpp)
 target_link_libraries(arvc_remove_dot_from_extracted_bag_filenames ${catkin_LIBRARIES})
 
-add_executable(arvc_bag_manage src/bagfiles/bag_manage.cpp)
-target_link_libraries(arvc_bag_manage ${catkin_LIBRARIES})
+add_executable(arvc_extract_rosbag src/bagfiles/extract_rosbag.cpp)
+target_link_libraries(arvc_extract_rosbag ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 # DATASETS ....................................................................#
 add_executable(arvc_check_dataset src/datasets/check_dataset.cpp)
@@ -84,8 +85,8 @@ target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 # add_executable(arvc_filter_ground_by_RANSAC src/pointclouds/filter_ground_by_RANSAC.cpp)
 # target_link_libraries(arvc_filter_ground_by_RANSAC ${PCL_LIBRARIES})
 
-# add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
-# target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
+add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
+target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
 
 # add_executable(arvc_range_filter src/pointclouds/range_filter.cpp)
 # target_link_libraries(arvc_range_filter ${PCL_LIBRARIES})
@@ -152,3 +153,6 @@ target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES} Threads::Th
 
 add_executable(arvc_sort_cloud_by_distance src/sort_cloud_by_distance.cpp)
 target_link_libraries(arvc_sort_cloud_by_distance ${PCL_LIBRARIES})
+
+add_executable(arvc_get_scale src/pointclouds/get_scale.cpp)
+target_link_libraries(arvc_get_scale ${PCL_LIBRARIES})

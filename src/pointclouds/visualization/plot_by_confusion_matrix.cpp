@@ -187,11 +187,11 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
   my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "fn_cloud");
 
 
-  while (!my_vis.wasStopped())
-  {
-    my_vis.saveCameraParameters(camera_params_path.string());
-    my_vis.spinOnce(100);
-  }
+  // while (!my_vis.wasStopped())
+  // {
+    // my_vis.saveCameraParameters(camera_params_path.string());
+    // my_vis.spinOnce(1000);
+  // }
 
   my_vis.saveScreenshot(PRED_PATH.string() + "/" + (CLOUD_NAME + "_conf_matrix.png"));
 
@@ -200,56 +200,63 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 
 int main()
 {
-  std::vector<std::string> MODELS = {"PointNetBinSeg", "PointNet2BinSeg", "MinkUNet34C", "PointTransformerV3"};
-  std::vector<std::string> FEATURES = {"c","nxnynz", "xyz", "xyzc", "xyznxnynz"};
-  std::vector<std::string> DATASETS = {"orto", "crossed", "00", "01", "02", "03"};
+  // std::vector<std::string> MODELS = {"PointNetBinSeg", "PointNet2BinSeg", "MinkUNet34C", "PointTransformerV3"};
+  // std::vector<std::string> FEATURES = {"c","nxnynz", "xyz", "xyzc", "xyznxnynz"};
+  // std::vector<std::string> DATASETS = {"orto", "crossed", "00", "01", "02", "03"};
+
+  // std::vector<std::string> MODELS = {"PointNet2BinSeg"};
+  std::vector<std::string> MODELS = {"PointNet2BinSeg/240722104532/", "MinkUNet34C/240628235025/", "PointTransformerV3/c/"};
+  std::vector<std::string> DATASETS = {"00", "01", "02"};
+
   
-  std::string MODEL_NAME = MODELS[3];
-  std::string FEATURE = FEATURES[0];
-  std::string SET_NAME = DATASETS[0];
+  std::string MODEL_NAME;
+  std::string SET_NAME;
   std::string SUFFIX = "ply_xyzln";
 
   // MULTIPLE MODELS AN FILES
-  // for (const std::string& model : MODELS)
-  // {
-  //   for (const std::string& dataset : DATASETS)
-  //   {
-  //     MODEL_NAME = model;
-  //     SET_NAME = dataset;
+  for (const std::string& model : MODELS)
+  {
+    for (const std::string& dataset : DATASETS)
+    {
+      MODEL_NAME = model;
+      SET_NAME = dataset;
 
-  //     if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
-  //       SUFFIX = "ply_xyzln";
 
-  //     fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
-  //     fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/visualization/results/" + MODEL_NAME + "/" + FEATURE + "/" + SET_NAME);
+      fs::path GT_PATH("/media/arvc/data/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
+      
+      fs::path PRED_PATH;
+      if (MODEL_NAME == "PointNet2BinSeg/240722104532/")
+        PRED_PATH = fs::path("/home/arvc/Documents/Fran/2_ARTICULOS/RIAI25/assets/RIAI25_complex_truss_analysis/" + MODEL_NAME + "complex_structure_v2/" + SET_NAME + "/" + "variable_size");
+      else 
+        PRED_PATH = fs::path("/home/arvc/Documents/Fran/2_ARTICULOS/RIAI25/assets/RIAI25_complex_truss_analysis/" + MODEL_NAME + "complex_structure_v2/" + SET_NAME);
 
-  //     for (const auto & entry : fs::directory_iterator(PRED_PATH))
-  //     {
-  //       if (entry.path().extension() == ".ply") {
-  //         std::string CLOUD_NAME = entry.path().stem().string();
-  //         plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
-  //       }
-  //     }
-  //   }
-  // }
+      for (const auto & entry : fs::directory_iterator(PRED_PATH))
+      {
+        if (entry.path().extension() == ".ply") {
+          std::string CLOUD_NAME = entry.path().stem().string();
+          plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
+        }
+      }
+    }
+  }
 
 
   // SINGLE MODEL AND FILE
-  if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
-  SUFFIX = "ply_xyzln";
+  // if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
+  // SUFFIX = "ply_xyzln";
 
-  fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
-  fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/dl/results/" + MODEL_NAME + "/" + FEATURE + "/" + SET_NAME); // DL METHODS
-  // fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/analytical/results/" + SET_NAME);  // ANALYTICAL METHODS
+  // fs::path GT_PATH("/media/arvc/data/datasets/complex_structure_visualization" + SET_NAME + "/" + SUFFIX);
+  // fs::path PRED_PATH("/home/arvc/Documents/Fran/2_ARTICULOS/RIAI25/assets/RIAI25_complex_truss_analysis/PointNet2BinSeg/240722104532/complex_structure_v2" + "/" + set + "/" + SET_NAME); // DL METHODS
+  // // fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/analytical/results/" + SET_NAME);  // ANALYTICAL METHODS
 
   
-  for (const auto & entry : fs::directory_iterator(PRED_PATH))
-  {
-    if (entry.path().extension() == ".ply") {
-      std::string CLOUD_NAME = entry.path().stem().string();
-      plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
-    }
-  }
+  // for (const auto & entry : fs::directory_iterator(PRED_PATH))
+  // {
+  //   if (entry.path().extension() == ".ply") {
+  //     std::string CLOUD_NAME = entry.path().stem().string();
+  //     plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
+  //   }
+  // }
 
   return 0;  
 }
