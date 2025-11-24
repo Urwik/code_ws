@@ -87,8 +87,8 @@ target_link_libraries(arvc_compute_normals ${PCL_LIBRARIES})
 # add_executable(arvc_filter_ground_by_RANSAC src/pointclouds/filter_ground_by_RANSAC.cpp)
 # target_link_libraries(arvc_filter_ground_by_RANSAC ${PCL_LIBRARIES})
 
-add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
-target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
+# add_executable(arvc_view_cloud src/pointclouds/view_cloud.cpp)
+# target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})
 
 # add_executable(arvc_range_filter src/pointclouds/range_filter.cpp)
 # target_link_libraries(arvc_range_filter ${PCL_LIBRARIES})
@@ -119,6 +119,9 @@ target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRA
 
 add_executable(arvc_plot_by_confusion_matrix src/pointclouds/visualization/plot_by_confusion_matrix.cpp)
 target_link_libraries(arvc_plot_by_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
+
+add_executable(sncs_confusion_matrix src/pointclouds/visualization/sncs_confusion_matrix_comparison.cpp)
+target_link_libraries(sncs_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
 
 add_executable(arvc_plot_by_paralelepiped src/pointclouds/visualization/plot_by_paralelepiped.cpp)
 target_link_libraries(arvc_plot_by_paralelepiped ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
