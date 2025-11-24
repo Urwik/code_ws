@@ -222,11 +222,11 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
   my_vis.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "fn_cloud");
 
 
-  while (!my_vis.wasStopped())
-  {
-    my_vis.saveCameraParameters(camera_params_path.string());
-    my_vis.spinOnce(100);
-  }
+  // while (!my_vis.wasStopped())
+  // {
+    // my_vis.saveCameraParameters(camera_params_path.string());
+    // my_vis.spinOnce(1000);
+  // }
 
   my_vis.saveScreenshot(PRED_PATH.string() + "/" + (CLOUD_NAME + "_conf_matrix.png"));
 

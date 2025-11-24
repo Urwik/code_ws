@@ -154,7 +154,38 @@ int main(int argc, char **argv)
 
       addCustomFrame(viewer, origin, "sensor_origin", 1.5);
 
-      viewer->spin();
+
+      // Flag to control the spin loop independently of the PCL visualizer's stopped state
+      bool should_continue_spinning = true;
+      
+      // Register keyboard callback to handle 'q' and right arrow keys
+      viewer->registerKeyboardCallback([&should_continue_spinning](const pcl::visualization::KeyboardEvent& event) {
+          if (event.getKeySym() == "q" && event.keyDown()) {
+              // 'q' pressed: close window and kill viewer
+              // viewer->
+              should_continue_spinning = false;
+              return;
+          }
+          if (event.getKeySym() == "Right" && event.keyDown()) {
+              // Right arrow pressed: exit spin but keep viewer alive
+              should_continue_spinning = false;
+              return;
+          }
+      });
+
+      // Custom spin loop with interaction enabled
+      while (should_continue_spinning && !viewer->wasStopped()) {
+          viewer->spinOnce(100);
+      }
+      
+      // If window was closed by user (X button) and not by 'q' key, clean up
+      if (!should_continue_spinning && viewer->wasStopped()) {
+          viewer->removeAllPointClouds();
+          viewer->removeAllShapes();
+      }
+
+
+      // viewer->spin();
       viewer->saveCameraParameters("/home/arvc/tmp_cam_params.txt");
     }
   }
