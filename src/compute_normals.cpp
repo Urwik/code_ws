@@ -85,23 +85,23 @@ int main(int argc, char **argv)
                 if (entry.path().extension().string() == ".pcd" || entry.path().extension().string() == ".ply")
                     cloud_paths.push_back(entry.path());
             }
-            {
-                fs::path set_dir = entry.path() / TARGET_DIR_NAME;
-                std::cout << "Getting clouds from set: " << set_dir << std::endl;
+            // {
+            //     fs::path set_dir = entry.path() / TARGET_DIR_NAME;
+            //     std::cout << "Getting clouds from set: " << set_dir << std::endl;
 
-                for (const auto &cloud_entry : fs::directory_iterator(set_dir))
-                {
-                    if (cloud_entry.path().extension().string() == ".pcd" || cloud_entry.path().extension().string() == ".ply")
-                    {
-                        cloud_paths.push_back(cloud_entry.path());
-                    }
-                }
-            }
+            //     for (const auto &cloud_entry : fs::directory_iterator(set_dir))
+            //     {
+            //         if (cloud_entry.path().extension().string() == ".pcd" || cloud_entry.path().extension().string() == ".ply")
+            //         {
+            //             cloud_paths.push_back(cloud_entry.path());
+            //         }
+            //     }
+            // }
 
-            else if (entry.is_regular_file()) {
-                if (entry.path().extension().string() == ".pcd" || entry.path().extension().string() == ".ply")
-                    cloud_paths.push_back(entry.path());
-            }
+            // else if (entry.is_regular_file()) {
+            //     if (entry.path().extension().string() == ".pcd" || entry.path().extension().string() == ".ply")
+            //         cloud_paths.push_back(entry.path());
+            // }
         }
 
         std::cout << "Reading clouds..." << std::endl;

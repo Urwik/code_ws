@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
     if (argc < 2) {
         std::cout << "Usage: " << argv[0] << " <pointcloud_file>" << std::endl;
-        std::cout << "Example: " << argv[0] << " cloud.pcd" << std::endl;
+        std::cout << "Example: " << argv[0] << " cloud.pcd or " << argv[0] << " cloud.ply" << std::endl;
         return 1;
     }
 

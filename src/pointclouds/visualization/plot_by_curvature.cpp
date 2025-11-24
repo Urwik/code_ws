@@ -1,8 +1,8 @@
+// C++
 #include <iostream>
 #include <filesystem>
-#include <thread>
-
-#include "arvc_utils.cpp"
+#include <vector>
+#include <algorithm>
 
 // PCL
 #include <pcl/io/pcd_io.h>
@@ -10,7 +10,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/filters/passthrough.h>
 
 // Type Definitions ////////////////////////////////////////////////////////////
 typedef pcl::PointXYZLNormal PointT;
@@ -18,10 +17,11 @@ typedef pcl::PointCloud<PointT> PointCloud;
 
 namespace fs = std::filesystem;
 
+////////////////////////////////////////////////////////////////////////////////
 
 PointCloud::Ptr readCloud(fs::path path_)
 {
-  PointCloud::Ptr cloud (new PointCloud);
+  PointCloud::Ptr cloud(new PointCloud);
   std::string file_ext = path_.extension();
 
   if (file_ext == ".pcd")
@@ -40,73 +40,203 @@ PointCloud::Ptr readCloud(fs::path path_)
   return cloud;
 }
 
-
-std::vector<int> colorGradient(float value)
+// Create color gradient from normalized curvature value (0.0 to 1.0)
+void getColorFromGradient(float normalized_value, int &r, int &g, int &b)
 {
-  std::vector<int> color;
-  int red = (int) value*255;
-  int green = (int) (1 - value)*255;
-  int blue = 0;
-
-  color = {red, green, blue};
-
-  std::cout << red << ',' << green << ',' << blue << endl;
-
-  return color;
+  // Blue (low curvature) -> Cyan -> Green -> Yellow -> Red (high curvature)
+  if (normalized_value < 0.25f) {
+    // Blue to Cyan
+    float local_val = normalized_value / 0.25f;
+    r = 0;
+    g = static_cast<int>(local_val * 255);
+    b = 255;
+  }
+  else if (normalized_value < 0.5f) {
+    // Cyan to Green
+    float local_val = (normalized_value - 0.25f) / 0.25f;
+    r = 0;
+    g = 255;
+    b = static_cast<int>((1.0f - local_val) * 255);
+  }
+  else if (normalized_value < 0.75f) {
+    // Green to Yellow
+    float local_val = (normalized_value - 0.5f) / 0.25f;
+    r = static_cast<int>(local_val * 255);
+    g = 255;
+    b = 0;
+  }
+  else {
+    // Yellow to Red
+    float local_val = (normalized_value - 0.75f) / 0.25f;
+    r = 255;
+    g = static_cast<int>((1.0f - local_val) * 255);
+    b = 0;
+  }
 }
 
-
-void plotCloud(PointCloud::Ptr &cloud)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr createCurvatureColorCloud(PointCloud::Ptr &cloud_in)
 {
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr gradient_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr gradient_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  gradient_cloud->resize(cloud_in->size());
 
-  Eigen::VectorXf curv_vec(cloud->points.size());
+  // Find min and max curvature values
+  float min_curv = std::numeric_limits<float>::max();
+  float max_curv = std::numeric_limits<float>::lowest();
 
-  for (size_t i = 0; i < cloud->points.size(); i++)
-    curv_vec(i)= cloud->points[i].curvature;
+  for (size_t i = 0; i < cloud_in->points.size(); i++)
+  {
+    float curv = cloud_in->points[i].curvature;
+    if (curv < min_curv) min_curv = curv;
+    if (curv > max_curv) max_curv = curv;
+  }
 
-  std::cout << "Maximo valor de Curvatura: " << curv_vec.maxCoeff() << std::endl;
-  std::cout << "Minimo valor de Curvatura: " << curv_vec.minCoeff() << std::endl;
+  std::cout << "Curvature range: [" << min_curv << ", " << max_curv << "]" << std::endl;
 
+  // Normalize curvature and apply color gradient
+  float curv_range = max_curv - min_curv;
+  if (curv_range < 1e-6f) curv_range = 1.0f; // Avoid division by zero
 
-  // Eigen::VectorXf curv_norm;
-  // curv_norm = curv_vec / curv_vec.maxCoeff();
+  for (size_t i = 0; i < cloud_in->points.size(); i++)
+  {
+    float normalized_curv = (cloud_in->points[i].curvature - min_curv) / curv_range;
+    
+    int r, g, b;
+    getColorFromGradient(normalized_curv, r, g, b);
 
-  // gradient_cloud->resize(cloud->size());
+    gradient_cloud->points[i].x = cloud_in->points[i].x;
+    gradient_cloud->points[i].y = cloud_in->points[i].y;
+    gradient_cloud->points[i].z = cloud_in->points[i].z;
+    gradient_cloud->points[i].r = r;
+    gradient_cloud->points[i].g = g;
+    gradient_cloud->points[i].b = b;
+  }
 
-  // for (size_t i = 0; i < cloud->points.size(); i++)
-  // {
-  //   std::vector<int> color;
-  //   // std::cout << curv_norm(i) << std::endl;
-  //   color = colorGradient(curv_norm(i));
-  //   gradient_cloud->points[i].x = cloud->points[i].x;
-  //   gradient_cloud->points[i].y = cloud->points[i].y;
-  //   gradient_cloud->points[i].z = cloud->points[i].z;
-  //   gradient_cloud->points[i].r = color[0];
-  //   gradient_cloud->points[i].g = color[1];
-  //   gradient_cloud->points[i].b = color[2];
-  // }
-
-  // pcl::visualization::PCLVisualizer visualizer;
-  // visualizer.addPointCloud<pcl::PointXYZRGB>(gradient_cloud, "curvature_cloud");
-
-  // while (!visualizer.wasStopped())
-  //   visualizer.spinOnce(100);
-
+  return gradient_cloud;
 }
-
-
 
 int main(int argc, char **argv)
 {
-  fs::path current_path = fs::current_path();
-  PointCloud::Ptr cloud_in (new PointCloud);
+  PointCloud::Ptr cloud_in(new PointCloud);
+  fs::path current_dir = fs::current_path();
 
-  fs::path entry = argv[1];
-  cloud_in = arvc::readCloud(entry);
-  plotCloud(cloud_in);
+  if (argc < 2)
+  {
+    // Process all .pcd and .ply files in current directory
+    std::vector<fs::path> path_vector;
+    for (const auto &entry : fs::directory_iterator(current_dir))
+    {
+      if (entry.path().extension() == ".pcd" || entry.path().extension() == ".ply")
+        path_vector.push_back(entry.path());
+    }
 
-  return 0;  
+    std::sort(path_vector.begin(), path_vector.end());
+
+    if (path_vector.empty())
+    {
+      std::cout << "No .pcd or .ply files found in current directory." << std::endl;
+      return 1;
+    }
+
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Curvature Viewer"));
+    viewer->setBackgroundColor(0.1, 0.1, 0.1);
+
+    int index = 0;
+    while (index >= 0 && index < (int)path_vector.size())
+    {
+      fs::path cloud_path = path_vector[index];
+      std::cout << "\nLoading: " << cloud_path.filename() << " (" << (index + 1) << "/" << path_vector.size() << ")" << std::endl;
+      
+      cloud_in = readCloud(cloud_path);
+
+      if (cloud_in->empty())
+      {
+        std::cout << "Warning: Cloud is empty, skipping..." << std::endl;
+        index++;
+        continue;
+      }
+
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = createCurvatureColorCloud(cloud_in);
+
+      viewer->addPointCloud<pcl::PointXYZRGB>(colored_cloud, "cloud");
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud");
+      
+      std::string info_text = cloud_path.filename().string() + " (" + std::to_string(index + 1) + "/" + std::to_string(path_vector.size()) + ")";
+      viewer->addText(info_text, 10, 10, 16, 1.0, 1.0, 1.0, "index_text");
+      viewer->addText("Right: Next | Left: Previous | Q: Quit", 10, 30, 12, 0.8, 0.8, 0.8, "help_text");
+
+      // Flag to control the spin loop
+      bool should_continue_spinning = true;
+      bool increase_index = false;
+
+      // Register keyboard callback
+      viewer->registerKeyboardCallback([&increase_index, &should_continue_spinning](const pcl::visualization::KeyboardEvent &event) {
+        if (event.getKeySym() == "q" && event.keyDown())
+        {
+          should_continue_spinning = false;
+          return;
+        }
+        if (event.getKeySym() == "Right" && event.keyDown())
+        {
+          should_continue_spinning = false;
+          increase_index = true;
+          return;
+        }
+        if (event.getKeySym() == "Left" && event.keyDown())
+        {
+          should_continue_spinning = false;
+          increase_index = false;
+          return;
+        }
+      });
+
+      // Custom spin loop
+      while (should_continue_spinning && !viewer->wasStopped())
+      {
+        viewer->spinOnce(100);
+      }
+
+      if (!should_continue_spinning)
+      {
+        if (increase_index)
+          index++;
+        else
+          index = std::max(0, index - 1);
+
+        viewer->removeAllPointClouds();
+        viewer->removeAllShapes();
+      }
+
+      if (viewer->wasStopped())
+        break;
+    }
+  }
+  else
+  {
+    // Process single file
+    fs::path entry = argv[1];
+    std::cout << "Loading: " << entry << std::endl;
+    
+    cloud_in = readCloud(entry);
+
+    if (cloud_in->empty())
+    {
+      std::cout << "Error: Cloud is empty!" << std::endl;
+      return 1;
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud = createCurvatureColorCloud(cloud_in);
+
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Curvature Viewer"));
+    viewer->setBackgroundColor(0.1, 0.1, 0.1);
+    viewer->addPointCloud<pcl::PointXYZRGB>(colored_cloud, "cloud");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud");
+    viewer->addText(entry.filename().string(), 10, 10, 16, 1.0, 1.0, 1.0, "filename");
+
+    while (!viewer->wasStopped())
+      viewer->spinOnce(100);
+  }
+
+  return 0;
 }
 
 
