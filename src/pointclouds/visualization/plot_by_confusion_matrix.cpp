@@ -1,6 +1,7 @@
 #include <iostream>
 #include <filesystem>
 #include <thread>
+#include <string>
 
 #include "arvc_utils_v2.hpp"
 
@@ -87,13 +88,27 @@ ConfusionMatrixIndices compute_cm_indices(const pcl::Indices& gt_truss, const pc
 }
 
 
+std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
+    std::vector<std::string> tokens;
+    size_t pos = 0;
+    std::string token;
+    std::string str = s;
+    while ((pos = str.find(delimiter)) != std::string::npos) {
+        token = str.substr(0, pos);
+        tokens.push_back(token);
+        str.erase(0, pos + delimiter.length());
+    }
+    tokens.push_back(str);
+
+    return tokens;
+}
 
 
 void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, const string CLOUD_NAME)
 {
   fs::path current_path = fs::current_path();
 
-  PointCloudLN::Ptr gt_cloud (new PointCloudLN);
+  PointCloudL::Ptr gt_cloud (new PointCloudL);
   PointCloudL::Ptr  pred_cloud (new PointCloudL);
 
   PointCloud::Ptr cloud_in (new PointCloud);
@@ -104,14 +119,25 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
   ConfusionMatrixIndices cm_indices;
 
 
-  fs::path gt_cloud_path = GT_PATH / (CLOUD_NAME + ".ply");
+  fs::path gt_cloud_path = GT_PATH / (CLOUD_NAME + ".pcd");
   fs::path pred_cloud_path = PRED_PATH / (CLOUD_NAME + ".ply");
 
-  gt_cloud = arvc::readPointCloud<PointLN> (gt_cloud_path);
+
+  std::cout << "GT Cloud Path: " << gt_cloud_path.string() << std::endl;
+  std::cout << "Pred Cloud Path: " << pred_cloud_path.string() << std::endl;
+
+  gt_cloud = arvc::readPointCloud<PointL> (gt_cloud_path);
   pred_cloud = arvc::readPointCloud<PointL>(pred_cloud_path);
   cloud_in = arvc::parseToXYZ(gt_cloud);
+
+  if (gt_cloud->points.size() != pred_cloud->points.size())
+  {
+    std::cout << "Error: GT and Pred clouds have different sizes" << std::endl;
+    std::cout << "GT size: " << gt_cloud->points.size() << ", Pred size: " << pred_cloud->points.size() << std::endl;
+    return;
+  }
   
-  gt = get_indices<PointLN>(gt_cloud);
+  gt = get_indices<PointL>(gt_cloud);
   pred = get_indices<PointL>(pred_cloud);
 
   cm_indices = compute_cm_indices(gt.truss, gt.ground, pred.truss, pred.ground);
@@ -121,6 +147,7 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
   if (cm_size != (int) cloud_in->size())
   {
     std::cout << "Error: Confusion Matrix size is not equal to the cloud size" << std::endl;
+    std::cout << "CM size: " << cm_size << ", Cloud size: " << cloud_in->size() << std::endl;
     return;
   }
 
@@ -161,20 +188,28 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
   // my_vis.setFullScreen(true);
   my_vis.setBackgroundColor(1,1,1);
 
-  my_vis.addCoordinateSystem(1.5, "sensor_origin");
-  auto pos = cloud_in->sensor_origin_;
-  auto ori = cloud_in->sensor_orientation_;
-  Eigen::Vector3f position(pos[0], pos[1], pos[2]);
+  // my_vis.addCoordinateSystem(1.5, "sensor_origin");
+  // auto pos = cloud_in->sensor_origin_;
+  // auto ori = cloud_in->sensor_orientation_;
+  // Eigen::Vector3f position(pos[0], pos[1], pos[2]);
 
 
 
   // my_vis.addCube(position, ori, 0.3, 0.3, 0.3, "sensor_origin");
   my_vis.addSphere(pcl::PointXYZ(.0,.0,.0), 0.2, 1, 0, 1, "sphere_origin");
 
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> tp_color (tp_cloud, 76, 175, 80);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> tn_color (tn_cloud, 100,100,100);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> fp_color (fp_cloud, 211, 47, 47);
-  pcl::visualization::PointCloudColorHandlerCustom<PointT> fn_color (fn_cloud, 255, 152, 0);
+  // pcl::visualization::PointCloudColorHandlerCustom<PointT> tp_color (tp_cloud, 76, 175, 80); //76, 175, 80); original
+  // pcl::visualization::PointCloudColorHandlerCustom<PointT> tn_color (tn_cloud, 100,100,100); //100,100,100); original
+  // pcl::visualization::PointCloudColorHandlerCustom<PointT> fp_color (fp_cloud, 211, 47, 47); //211, 47, 47); original
+  // pcl::visualization::PointCloudColorHandlerCustom<PointT> fn_color (fn_cloud, 255, 152, 0); //255, 152, 0); original
+
+
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> tp_color (tp_cloud, 50, 190, 50); //sncs_color_palette
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> tn_color (tn_cloud, 100,100,100); //sncs_color_palette
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> fp_color (fp_cloud, 200, 10, 10); //sncs_color_palette
+  pcl::visualization::PointCloudColorHandlerCustom<PointT> fn_color (fn_cloud, 200, 10, 10); //sncs_color_palette
+
+
 
   my_vis.addPointCloud(tp_cloud, tp_color, "tp_cloud");
   my_vis.addPointCloud(tn_cloud, tn_color, "tn_cloud");
@@ -200,28 +235,38 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 
 int main()
 {
-  std::vector<std::string> MODELS = {"PointNetBinSeg", "PointNet2BinSeg", "MinkUNet34C", "PointTransformerV3"};
-  std::vector<std::string> FEATURES = {"c","nxnynz", "xyz", "xyzc", "xyznxnynz"};
-  std::vector<std::string> DATASETS = {"orto", "crossed", "00", "01", "02", "03"};
-  
-  std::string MODEL_NAME = MODELS[3];
-  std::string FEATURE = FEATURES[0];
-  std::string SET_NAME = DATASETS[0];
-  std::string SUFFIX = "ply_xyzln";
+  // std::vector<std::string> MODELS = {"PointNet2BinSeg", "MinkUNet34C", "PointTransformerV3"};
+  // std::vector<std::string> FEATURES = {"c","nxnynz", "xyz", "xyzc", "xyznxnynz"};
+  // std::vector<std::string> DATASETS = {"00", "01", "02"};
 
-  // MULTIPLE MODELS AN FILES
-  // for (const std::string& model : MODELS)
+  // std::vector<std::string> MODEL_RESULTS = {
+  //   "/home/fran/Documents/2_ARTICULOS/RIAI25_complex_truss_analysis/PointNet2BinSeg/240722104532/complex_structure_v2",
+  //   "/home/fran/Documents/2_ARTICULOS/RIAI25_complex_truss_analysis/MinkUNet34C/240628235025/complex_structure_v2",
+  //   "/home/fran/Documents/2_ARTICULOS/RIAI25_complex_truss_analysis/PointTransformerV3/c/complex_structure_v2"
+  // };
+  
+  // // std::string MODEL_NAME = MODELS[3];
+  // // std::string FEATURE = FEATURES[0];
+  // std::string SET_NAME = DATASETS[0];
+  // std::string SUFFIX = "ply_xyzln_fixedSize";
+
+  // // MULTIPLE MODELS AN FILES
+  // for (const std::string& model : MODEL_RESULTS)
   // {
   //   for (const std::string& dataset : DATASETS)
   //   {
-  //     MODEL_NAME = model;
+  //     std::vector<std::string> parts = split(model, "/");
+  //     const std::string MODEL_NAME = parts[parts.size() - 3]; // Get the third-to-last part of the path as model name
   //     SET_NAME = dataset;
+
+  //     std::cout << "Processing model: " << MODEL_NAME << " on dataset: " << SET_NAME << std::endl;
 
   //     if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
   //       SUFFIX = "ply_xyzln";
 
   //     fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
-  //     fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/visualization/results/" + MODEL_NAME + "/" + FEATURE + "/" + SET_NAME);
+
+  //     fs::path PRED_PATH(model + "/" + SET_NAME); // DL METHODS
 
   //     for (const auto & entry : fs::directory_iterator(PRED_PATH))
   //     {
@@ -235,11 +280,11 @@ int main()
 
 
   // SINGLE MODEL AND FILE
-  if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
-  SUFFIX = "ply_xyzln";
+  // if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
+  // SUFFIX = "ply_xyzln";
 
-  fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_visualization/" + SET_NAME + "/" + SUFFIX);
-  fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/dl/results/" + MODEL_NAME + "/" + FEATURE + "/" + SET_NAME); // DL METHODS
+  fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/sncs_test/v1/05/pcd");
+  fs::path PRED_PATH("/media/wd_hdd/ubuntu/sncs_dl_results/sncs_dl_results/PointNet2BinSeg/240723142940/sncs_test/v1/05"); // DL METHODS
   // fs::path PRED_PATH("/media/wd_hdd/ubuntu/datasets/complex_structure_inferences/analytical/results/" + SET_NAME);  // ANALYTICAL METHODS
 
   

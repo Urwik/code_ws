@@ -33,12 +33,16 @@ include_directories(${YAML_CPP_INCLUDE_DIRS})
 link_directories(${YAML_CPP_INCLUDE_DIRS})
 add_definitions(${YAML_CPP_DEFINITIONS})
 
+
+
 # BAGFILES ....................................................................#
 add_executable(arvc_remove_dot_from_extracted_bag_filenames src/bagfiles/remove_dot_from_extracted_bag_filenames.cpp)
 target_link_libraries(arvc_remove_dot_from_extracted_bag_filenames ${catkin_LIBRARIES})
 
 add_executable(arvc_bag_manage src/bagfiles/bag_manage.cpp)
 target_link_libraries(arvc_bag_manage ${catkin_LIBRARIES})
+
+
 
 # DATASETS ....................................................................#
 add_executable(arvc_check_dataset src/datasets/check_dataset.cpp)
@@ -64,6 +68,8 @@ target_link_libraries(arvc_check_real_dataset_pcd ${PCL_LIBRARIES})
 
 add_executable(arvc_check_duplicated_clouds src/datasets/check_duplicated_clouds.cpp)
 target_link_libraries(arvc_check_duplicated_clouds ${PCL_LIBRARIES})
+
+
 
 # POINTCLOUDS .................................................................#
 add_executable(arvc_pcd2ply src/pointclouds/transforms/pcd2ply.cpp)
@@ -117,6 +123,9 @@ target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRA
 add_executable(arvc_plot_by_confusion_matrix src/pointclouds/visualization/plot_by_confusion_matrix.cpp)
 target_link_libraries(arvc_plot_by_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
 
+add_executable(arvc_plot_by_paralelepiped src/pointclouds/visualization/plot_by_paralelepiped.cpp)
+target_link_libraries(arvc_plot_by_paralelepiped ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
+
 # add_executable(arvc_replace_field src/pointclouds/replace_field.cpp)
 # target_link_libraries(arvc_replace_field ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
@@ -132,8 +141,8 @@ target_link_libraries(arvc_plot_by_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LI
 # add_executable(arvc_multi_neighbor_normals src/pointclouds/multi_neighbor_normals.cpp)
 # target_link_libraries(arvc_multi_neighbor_normals ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-# add_executable(arvc_plot_by_curvature src/pointclouds/plot_by_curvature.cpp)
-# target_link_libraries(arvc_plot_by_curvature ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(arvc_plot_by_curvature src/pointclouds/visualization/plot_by_curvature.cpp)
+target_link_libraries(arvc_plot_by_curvature ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 # add_executable(arvc_clustering_regrow_normals src/pointclouds/clustering_regrow_normals.cpp)
 # target_link_libraries(arvc_clustering_regrow_normals ${PCL_LIBRARIES})
@@ -152,3 +161,7 @@ target_link_libraries(arvc_main ${catkin_LIBRARIES} ${PCL_LIBRARIES} Threads::Th
 
 add_executable(arvc_sort_cloud_by_distance src/sort_cloud_by_distance.cpp)
 target_link_libraries(arvc_sort_cloud_by_distance ${PCL_LIBRARIES})
+
+# VISUALIZATION ...........................................................#
+add_executable(arvc_view_cloud src/pointclouds/visualization/view_cloud.cpp)
+target_link_libraries(arvc_view_cloud ${PCL_LIBRARIES})

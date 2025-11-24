@@ -22,24 +22,18 @@ int main(int argc, char **argv)
 
     // Manage dynamic paths
     const fs::path CURRENT_PATH = fs::current_path();
-    const std::string SET_ID = CURRENT_PATH.parent_path().filename().string(); 
-
-    std::string GT_SUFFIX;
-    if (CURRENT_PATH.parent_path().filename().string() == "PointNetBinSeg")
-        GT_SUFFIX = "ply_xyzln_fixedSize";
-    else
-        GT_SUFFIX = "ply_xyzln";
-
-    YAML::Node config = YAML::LoadFile("/home/arvc/workspaces/code_ws/config/config.yaml");
-    const fs::path GT_PATH = config["GT_PATH"].as<string>();
-
-    const fs::path GT_PATH_FULL = GT_PATH / GT_SUFFIX;
-
+    const fs::path GT_PATH = fs::path("/media/wd_hdd/ubuntu/datasets/sncs_test/v1/05/pcd");
+    const fs::path PRED_PATH = fs::path("/media/wd_hdd/ubuntu/sncs_dl_results/sncs_dl_results/PointNet2BinSeg/240723142940/sncs_test/v1/05");
 
     // Create point cloud objects
-    PointCloud::Ptr gt_cloud_xyz(new PointCloud);
-    PointCloudLN::Ptr gt_cloud(new PointCloudLN);
-    PointCloudL::Ptr pred_cloud(new PointCloudL);
+    // PointCloud::Ptr gt_cloud_xyz(new PointCloud);
+    // PointCloudLN::Ptr gt_cloud(new PointCloudLN);
+    // PointCloudL::Ptr pred_cloud(new PointCloudL);
+    pcl::PointCloud<pcl::PointXYZL>::Ptr gt_cloud(new pcl::PointCloud<pcl::PointXYZL>);
+    pcl::PointCloud<pcl::PointXYZL>::Ptr pred_cloud(new pcl::PointCloud<pcl::PointXYZL>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xyz(new pcl::PointCloud<pcl::PointXYZ>);
+
+
 
     gt_indices _gt_idx;
     gt_indices _i_idx;
@@ -66,7 +60,7 @@ int main(int argc, char **argv)
         
         for (const fs::path PRED_FILE : pred_files) {
 
-            const fs::path gt_file = GT_PATH_FULL / PRED_FILE.filename();
+            const fs::path gt_file = GT_PATH / PRED_FILE.stem().concat(".pcd");
             
             std::cout << "PRED_FILE: " << PRED_FILE << std::endl;
             std::cout << "GT_FILE: " << gt_file << std::endl;
@@ -75,9 +69,10 @@ int main(int argc, char **argv)
             assert(fs::exists(gt_file));
 
             // Read the point clouds
-            pred_cloud = arvc::readPointCloud<PointL>(PRED_FILE);
-            gt_cloud = arvc::readPointCloud<PointLN>(gt_file.string());
-            gt_cloud_xyz = arvc::parseToXYZ(gt_cloud);
+            pred_cloud = arvc::readPointCloud<PointL>(PRED_FILE.string());
+            gt_cloud = arvc::readPointCloud<PointL>(gt_file.string());
+            // gt_cloud_xyz = arvc::parseToXYZ(gt_cloud);
+            pcl::copyPointCloud(*gt_cloud, *cloud_xyz);
 
             // Get the indices of the ground truth and the predictions
             _gt_idx = arvc::getGroundTruthIndices(gt_cloud);
@@ -92,9 +87,9 @@ int main(int argc, char **argv)
             error_idx->insert(error_idx->end(), _cm_indices.fp_idx->begin(), _cm_indices.fp_idx->end());
             error_idx->insert(error_idx->end(), _cm_indices.fn_idx->begin(), _cm_indices.fn_idx->end());
     
-            truss_cloud = arvc::extract_indices(gt_cloud_xyz, _cm_indices.tp_idx, false);
-            ground_cloud = arvc::extract_indices(gt_cloud_xyz, _cm_indices.tn_idx, false);
-            error_cloud = arvc::extract_indices(gt_cloud_xyz, error_idx, false);
+            truss_cloud = arvc::extract_indices(cloud_xyz, _cm_indices.tp_idx, false);
+            ground_cloud = arvc::extract_indices(cloud_xyz, _cm_indices.tn_idx, false);
+            error_cloud = arvc::extract_indices(cloud_xyz, error_idx, false);
     
             pcl::visualization::PCLVisualizer my_vis;
     
@@ -135,7 +130,7 @@ int main(int argc, char **argv)
         std::string CLOUD_FILENAME = argv[1];
         const fs::path PRED_FILE = CURRENT_PATH / CLOUD_FILENAME;
 
-        const fs::path gt_file = GT_PATH_FULL / PRED_FILE.filename();
+        const fs::path gt_file = GT_PATH / PRED_FILE.stem().concat(".pcd");
         
         std::cout << "PRED_FILE: " << PRED_FILE << std::endl;
         std::cout << "GT_FILE: " << gt_file << std::endl;
@@ -146,8 +141,8 @@ int main(int argc, char **argv)
 
         // Read the point clouds
         pred_cloud = arvc::readPointCloud<PointL>(PRED_FILE);
-        gt_cloud = arvc::readPointCloud<PointLN>(gt_file.string());
-        gt_cloud_xyz = arvc::parseToXYZ(gt_cloud);
+        gt_cloud = arvc::readPointCloud<PointL>(gt_file.string());
+        pcl::copyPointCloud(*gt_cloud, *cloud_xyz);
 
         // Get the indices of the ground truth and the predictions
         _gt_idx = arvc::getGroundTruthIndices(gt_cloud);
@@ -162,9 +157,9 @@ int main(int argc, char **argv)
         error_idx->insert(error_idx->end(), _cm_indices.fp_idx->begin(), _cm_indices.fp_idx->end());
         error_idx->insert(error_idx->end(), _cm_indices.fn_idx->begin(), _cm_indices.fn_idx->end());
 
-        truss_cloud = arvc::extract_indices(gt_cloud_xyz, _cm_indices.tp_idx, false);
-        ground_cloud = arvc::extract_indices(gt_cloud_xyz, _cm_indices.tn_idx, false);
-        error_cloud = arvc::extract_indices(gt_cloud_xyz, error_idx, false);
+        truss_cloud = arvc::extract_indices(cloud_xyz, _cm_indices.tp_idx, false);
+        ground_cloud = arvc::extract_indices(cloud_xyz, _cm_indices.tn_idx, false);
+        error_cloud = arvc::extract_indices(cloud_xyz, error_idx, false);
 
         pcl::visualization::PCLVisualizer my_vis;
 
