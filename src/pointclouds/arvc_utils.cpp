@@ -29,6 +29,7 @@
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
+#include"cnpy.h"
 
 
 #define RESET   "\033[0m"
@@ -278,4 +279,12 @@ namespace arvc
     
   }
 
-}
+  template <typename ScalarType>
+  std::vector<ScalarType> readNpy(const std::string &file_path)
+  {
+    cnpy::NpyArray arr = cnpy::npy_load(file_path);
+    return arr.as_vec<ScalarType>();
+  }
+
+
+} // namespace arvc

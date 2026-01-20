@@ -37,3 +37,29 @@ PointCloudLN::Ptr randomSampleCloud(PointCloudLN::Ptr &cloud_in, const int targe
 
   return cloud_out;
 }
+
+template <typename PointT>
+typename pcl::PointCloud<PointT>::Ptr random_sample_cloud<PointT>(typename pcl::PointCloud<PointT>::Ptr &cloud_in, const int target_points)
+{
+  typename pcl::PointCloud<PointT>::Ptr cloud_out (new pcl::PointCloud<PointT>);
+
+  pcl::Indices uselsess;
+  std::cout << "Removing NaNs from cloud..." << std::endl;
+  pcl::removeNaNFromPointCloud<PointT>(*cloud_in, *cloud_out, uselsess);
+
+  if(cloud_out->points.size() > target_points)
+  {
+    std::cout << "Sampling cloud to " << target_points << " points..." << std::endl;
+
+    typename  pcl::RandomSample<PointT> rs;
+    rs.setInputCloud(cloud_out);
+    rs.setSample(target_points);
+    rs.filter(*cloud_out);
+  }
+
+  std::cout << "Initial cloud size: " << cloud_in->points.size() << std::endl;
+  std::cout << "Number of NaNs removed: " << uselsess.size() << std::endl;
+  std::cout << "Final cloud size: " << cloud_out->points.size() << std::endl;
+
+  return cloud_out;
+}
