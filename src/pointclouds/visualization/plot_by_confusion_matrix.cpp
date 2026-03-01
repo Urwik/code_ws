@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <thread>
 #include <string>
+#include <unordered_set>
 
 #include "arvc_utils_v2.hpp"
 
@@ -70,48 +71,56 @@ struct ConfusionMatrixIndices
 	}
 };
 
-ConfusionMatrixIndices compute_cm_indices(const pcl::Indices &gt_truss, const pcl::Indices &gt_ground, const pcl::Indices pred_truss, const pcl::Indices &pred_ground)
+ConfusionMatrixIndices 
+compute_cm_indices(const pcl::Indices &gt_truss, const pcl::Indices &gt_ground, const pcl::Indices &pred_truss, const pcl::Indices &pred_ground)
 {
-	ConfusionMatrixIndices cm_indices;
+    ConfusionMatrixIndices cm_indices;
 
-	// True Positives (TP): Ground truth is truss and prediction is truss
-	for (int idx : gt_truss)
-	{
-		if (std::find(pred_truss.begin(), pred_truss.end(), idx) != pred_truss.end())
-		{
-			cm_indices.tp_idx->push_back(idx);
-		}
-	}
+    // Use hash sets for O(1) average time complexity lookups
+    std::unordered_set<int> pred_truss_set(pred_truss.begin(), pred_truss.end());
+    std::unordered_set<int> pred_ground_set(pred_ground.begin(), pred_ground.end());
 
-	// True Negatives (TN): Ground truth is ground and prediction is ground
-	for (int idx : gt_ground)
-	{
-		if (std::find(pred_ground.begin(), pred_ground.end(), idx) != pred_ground.end())
-		{
-			cm_indices.tn_idx->push_back(idx);
-		}
-	}
+    // True Positives (TP): Ground truth is truss and prediction is truss
+    for (int idx : gt_truss)
+    {
+        if (pred_truss_set.count(idx))
+        {
+            cm_indices.tp_idx->push_back(idx);
+        }
+    }
 
-	// False Positives (FP): Ground truth is ground but prediction is truss
-	for (int idx : gt_ground)
-	{
-		if (std::find(pred_truss.begin(), pred_truss.end(), idx) != pred_truss.end())
-		{
-			cm_indices.fp_idx->push_back(idx);
-		}
-	}
+    // True Negatives (TN): Ground truth is ground and prediction is ground
+    for (int idx : gt_ground)
+    {
+        if (pred_ground_set.count(idx))
+        {
+            cm_indices.tn_idx->push_back(idx);
+        }
+    }
 
-	// False Negatives (FN): Ground truth is truss but prediction is ground
-	for (int idx : gt_truss)
-	{
-		if (std::find(pred_ground.begin(), pred_ground.end(), idx) != pred_ground.end())
-		{
-			cm_indices.fn_idx->push_back(idx);
-		}
-	}
+    // False Positives (FP): Ground truth is ground but prediction is truss
+    for (int idx : gt_ground)
+    {
+        if (pred_truss_set.count(idx))
+        {
+            cm_indices.fp_idx->push_back(idx);
+        }
+    }
 
-	return cm_indices;
+    // False Negatives (FN): Ground truth is truss but prediction is ground
+    for (int idx : gt_truss)
+    {
+        if (pred_ground_set.count(idx))
+        {
+            cm_indices.fn_idx->push_back(idx);
+        }
+    }
+
+
+
+    return cm_indices;
 }
+
 
 std::vector<std::string> split(const std::string &s, const std::string &delimiter)
 {
@@ -139,7 +148,7 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 	PointCloudL::Ptr pred_cloud(new PointCloudL);
 
 	// Load point clouds
-	fs::path gt_cloud_path = GT_PATH / (CLOUD_NAME + ".ply");
+	fs::path gt_cloud_path = GT_PATH / (CLOUD_NAME + ".pcd");
 	fs::path pred_cloud_path = PRED_PATH / (CLOUD_NAME + ".ply");
 
 	gt_cloud = arvc::readPointCloud<PointL>(gt_cloud_path);
@@ -238,7 +247,7 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 	my_vis->saveScreenshot(PRED_PATH.string() + "/" + (CLOUD_NAME + "_conf_matrix.png"));
 }
 
-int main()
+int main(int argc, char** argv)
 {
 	// std::vector<std::string> MODELS = {"PointNet2BinSeg", "MinkUNet34C", "PointTransformerV3"};
 	// std::vector<std::string> FEATURES = {"c","nxnynz", "xyz", "xyzc", "xyznxnynz"};
@@ -283,33 +292,45 @@ int main()
 	//   }
 	// }
 
-	// SINGLE MODEL AND FILE
-	// if (MODEL_NAME == "MinkUNet34C" || MODEL_NAME == "PointTransformerV3")
-	// SUFFIX = "ply_xyzln";
-
-	fs::path GT_PATH("/media/arvc/data/datasets/sncs_test/v1/05/ply_xyzln");
-	fs::path PRED_PATH("/media/arvc/data/sncs_revision/sncs_dl_results/PointNet2BinSeg/240723142940/sncs_test_unfixed/v1/05"); // DL METHODS
-	// fs::path PRED_PATH("/home/arvc/workspaces/arvc_ws/src/arvc_ground_filter/results_sncs_revision_single_threaded/05/2"); // analytical
-	// fs::path PRED_PATH("/media/arvc/data/sncs_revision/sncs_analytical_results/hybrid/00");  // ANALYTICAL METHODS
-	// fs::path PRED_PATH("/media/arvc/data/sncs_revision/sncs_analytical_results/hybrid/00");  // ANALYTICAL METHODS
+	const fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/sncs_test/v1/05/pcd");
+	const fs::path PRED_PATH("/media/wd_hdd/ubuntu/sncs_revision/adhoc_results/hybrid/05"); // DL METHODS
+	// const fs::path PRED_PATH("/media/wd_hdd/ubuntu/sncs_revision/dl_results/05"); // DL METHODS
 
 
-	std::vector<fs::path> pred_files;
+	// const fs::path GT_PATH("/media/arvc/data/datasets/sncs_test/v1/05/ply_xyzln");
+	// const fs::path PRED_PATH("/media/arvc/data/sncs_revision/sncs_dl_results/PointNet2BinSeg/240723142940/sncs_test_unfixed/v1/05"); // DL METHODS
 
-	for (const auto &entry : fs::directory_iterator(PRED_PATH))
+
+	if (argc == 1)
 	{
-		if (entry.path().extension() == ".ply")
+		std::vector<fs::path> pred_files;
+
+		for (const auto &entry : fs::directory_iterator(PRED_PATH))
 		{
-			pred_files.push_back(entry.path());
+			if (entry.path().extension() == ".ply")
+			{
+				pred_files.push_back(entry.path());
+			}
+		}
+
+		std::sort(pred_files.begin(), pred_files.end());
+
+		for (const auto &entry : pred_files)
+		{
+			std::string CLOUD_NAME = entry.stem().string();
+			plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
 		}
 	}
-
-	std::sort(pred_files.begin(), pred_files.end());
-
-	for (const auto &entry : pred_files)
+	else if (argc == 2)
 	{
-		std::string CLOUD_NAME = entry.stem().string();
+		std::string CLOUD_NAME = argv[1];
 		plot_by_confusion_matrix(GT_PATH, PRED_PATH, CLOUD_NAME);
 	}
+	else
+	{
+		std::cout << "Usage: " << argv[0] << " [CLOUD_NAME]" << std::endl;
+		std::cout << "If no CLOUD_NAME is provided, all clouds in the PRED_PATH will be processed." << std::endl;
+	}
+
 	return 0;
 }

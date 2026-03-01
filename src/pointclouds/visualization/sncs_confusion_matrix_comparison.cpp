@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <thread>
 #include <string>
+#include <unordered_set>
 
 #include "arvc_utils_v2.hpp"
 
@@ -27,14 +28,25 @@ template <typename PointT>
 truss_idx get_indices(typename pcl::PointCloud<PointT>::Ptr _cloud)
 {
 	truss_idx idx;
+    // Pre-allocate memory to avoid reallocations
+    idx.ground.reserve(_cloud->size());
+    idx.truss.reserve(_cloud->size());
+
+	std::unordered_set<int> unique_labels;
+
 
 	for (size_t i = 0; i < _cloud->size(); i++)
 	{
-		if (_cloud->points[i].label == 0)
-			idx.ground.push_back(i);
-		else
+		unique_labels.insert(_cloud->points[i].label);
+
+		if (_cloud->points[i].label > 0)
 			idx.truss.push_back(i);
+		else
+			idx.ground.push_back(i);
 	}
+
+	std::cout << "Unique labels in point cloud: " << unique_labels.size() << std::endl;
+
 
 	return idx;
 }
@@ -69,7 +81,8 @@ struct ConfusionMatrixIndices
 	}
 };
 
-ConfusionMatrixIndices compute_cm_indices(const pcl::Indices &gt_truss, const pcl::Indices &gt_ground, const pcl::Indices pred_truss, const pcl::Indices &pred_ground)
+ConfusionMatrixIndices 
+compute_cm_indices(const pcl::Indices &gt_truss, const pcl::Indices &gt_ground, const pcl::Indices pred_truss, const pcl::Indices &pred_ground)
 {
 	ConfusionMatrixIndices cm_indices;
 
@@ -112,6 +125,58 @@ ConfusionMatrixIndices compute_cm_indices(const pcl::Indices &gt_truss, const pc
 	return cm_indices;
 }
 
+
+ConfusionMatrixIndices 
+compute_cm_indices_fast(const pcl::Indices &gt_truss, const pcl::Indices &gt_ground, const pcl::Indices &pred_truss, const pcl::Indices &pred_ground)
+{
+    ConfusionMatrixIndices cm_indices;
+
+    // Use hash sets for O(1) average time complexity lookups
+    std::unordered_set<int> pred_truss_set(pred_truss.begin(), pred_truss.end());
+    std::unordered_set<int> pred_ground_set(pred_ground.begin(), pred_ground.end());
+
+    // True Positives (TP): Ground truth is truss and prediction is truss
+    for (int idx : gt_truss)
+    {
+        if (pred_truss_set.count(idx))
+        {
+            cm_indices.tp_idx->push_back(idx);
+        }
+    }
+
+    // True Negatives (TN): Ground truth is ground and prediction is ground
+    for (int idx : gt_ground)
+    {
+        if (pred_ground_set.count(idx))
+        {
+            cm_indices.tn_idx->push_back(idx);
+        }
+    }
+
+    // False Positives (FP): Ground truth is ground but prediction is truss
+    for (int idx : gt_ground)
+    {
+        if (pred_truss_set.count(idx))
+        {
+            cm_indices.fp_idx->push_back(idx);
+        }
+    }
+
+    // False Negatives (FN): Ground truth is truss but prediction is ground
+    for (int idx : gt_truss)
+    {
+        if (pred_ground_set.count(idx))
+        {
+            cm_indices.fn_idx->push_back(idx);
+        }
+    }
+
+
+
+    return cm_indices;
+}
+
+
 std::vector<std::string> split(const std::string &s, const std::string &delimiter)
 {
 	std::vector<std::string> tokens;
@@ -129,7 +194,7 @@ std::vector<std::string> split(const std::string &s, const std::string &delimite
 	return tokens;
 }
 
-void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path DL_PRED_PATH, const fs::path ANALYTICAL_PRED_PATH, const string CLOUD_NAME)
+void plot_by_confusion_matrix_comparison(const fs::path &GT_PATH, const fs::path &DL_PRED_PATH, const fs::path &ADHOC_PRED_PATH, const string &CLOUD_NAME)
 {
 
 	// Create point cloud pointers
@@ -139,9 +204,9 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path DL_PRED_PAT
 	PointCloudL::Ptr adhoc_pred_cloud(new PointCloudL);
 
 	// Load point clouds
-	fs::path gt_cloud_path = GT_PATH / (CLOUD_NAME + ".ply");
+	fs::path gt_cloud_path = GT_PATH / (CLOUD_NAME + ".pcd");
 	fs::path dl_pred_path = DL_PRED_PATH / (CLOUD_NAME + ".ply");
-	fs::path adhoc_pred_path = ANALYTICAL_PRED_PATH / (CLOUD_NAME + ".ply");
+	fs::path adhoc_pred_path = ADHOC_PRED_PATH / (CLOUD_NAME + ".ply");
 
 	gt_cloud = arvc::readPointCloud<PointL>(gt_cloud_path);
 	dl_pred_cloud = arvc::readPointCloud<PointL>(dl_pred_path);
@@ -156,20 +221,25 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path DL_PRED_PAT
 	}
 
 	std::cout << "GT Cloud Path: " << gt_cloud_path.string() << std::endl;
-	std::cout << "DLPred Cloud Path: " << dl_pred_path.string() << std::endl;
-	std::cout << "Adhoc Pred Cloud Path: " << adhoc_pred_path.string() << std::endl;
+	std::cout << "DL Cloud Path: " << dl_pred_path.string() << std::endl;
+	std::cout << "Ah Cloud Path: " << adhoc_pred_path.string() << std::endl;
 
 	// Get Gt and Pred Indices
 	truss_idx gt;
 	truss_idx dl_pred;
 	truss_idx adhoc_pred;
+
+	std::cout << "Getting gt indices:" << std::endl;
 	gt = get_indices<PointL>(gt_cloud);
+	std::cout << "Getting dl pred indices:" << std::endl;
 	dl_pred = get_indices<PointL>(dl_pred_cloud);
+	std::cout << "Getting adhoc pred indices:" << std::endl;
 	adhoc_pred = get_indices<PointL>(adhoc_pred_cloud);
 
 	// Compute Confusion Matrix Indices for dl method
 	ConfusionMatrixIndices dl_cm_indices;
-	dl_cm_indices = compute_cm_indices(gt.truss, gt.ground, dl_pred.truss, dl_pred.ground);
+	dl_cm_indices = compute_cm_indices_fast(gt.truss, gt.ground, dl_pred.truss, dl_pred.ground);
+	
 	if (dl_cm_indices.size() != (int)cloud_in->size())
 	{
 		std::cout << "Error: Confusion Matrix size is not equal to the cloud size" << std::endl;
@@ -197,7 +267,8 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path DL_PRED_PAT
 
 	// Compute Confusion Matrix Indices for adhoc method
 	ConfusionMatrixIndices adhoc_cm_indices;
-	adhoc_cm_indices = compute_cm_indices(gt.truss, gt.ground, adhoc_pred.truss, adhoc_pred.ground);
+	adhoc_cm_indices = compute_cm_indices_fast(gt.truss, gt.ground, adhoc_pred.truss, adhoc_pred.ground);
+
 	if (adhoc_cm_indices.size() != (int)cloud_in->size())
 	{
 		std::cout << "Error: Confusion Matrix size is not equal to the cloud size" << std::endl;
@@ -238,8 +309,8 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path DL_PRED_PAT
 	viewer->setBackgroundColor(1, 1, 1, v1);
 	viewer->setBackgroundColor(1, 1, 1, v2);
 
-	viewer->addText("DL Method", 10, 10, "v1_text", v1);
-	viewer->addText("Analytical Method", 10, 10, "v2_text", v2);
+	viewer->addText("DL Method", 10, 10, 0.0, 0.0, 0.0, "v1_text", v1);
+	viewer->addText("Analytical Method", 10, 10, 0.0, 0.0, 0.0, "v2_text", v2);
 
 	try
 	{
@@ -278,16 +349,17 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path DL_PRED_PAT
 	viewer->addPointCloud(adhoc_fp_cloud, adhoc_fp_color, "adhoc_fp_cloud", v2);
 	viewer->addPointCloud(adhoc_fn_cloud, adhoc_fn_color, "adhoc_fn_cloud", v2);
 
+	// DL Method point sizes
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "dl_tp_cloud", v1);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "dl_tn_cloud", v1);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "dl_fp_cloud", v1);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "dl_fn_cloud", v1);
 
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "dl_tp_cloud");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "dl_tn_cloud");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "dl_fp_cloud");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "dl_fn_cloud");
-
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "adhoc_tp_cloud");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "adhoc_tn_cloud");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "adhoc_fp_cloud");
-	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "adhoc_fn_cloud");
+	// Adhoc Method point sizes
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "adhoc_tp_cloud", v2);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "adhoc_tn_cloud", v2);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "adhoc_fp_cloud", v2);
+	viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "adhoc_fn_cloud", v2);
 
 	while (!viewer->wasStopped())
 	{
@@ -296,28 +368,59 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path DL_PRED_PAT
 	}
 }
 
-int main()
+
+/**
+ * @brief Main function
+ */
+int main(int argc, char** argv)
 {
+	
+	pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS); // L_ERROR, L_WARN, L_INFO, L_DEBUG
+
+
 	const std::string SET_ID = "05";
 
-	fs::path GT_PATH("/media/arvc/data/datasets/sncs_test/v1/" + SET_ID + "/ply_xyzln");
-	fs::path DL_PRED_PATH("/media/arvc/data/sncs_revision/sncs_dl_results/PointNet2BinSeg/240723142940/sncs_test_unfixed/v1/" + SET_ID); // DL METHODS
-	fs::path ANALYTICAL_PRED_PATH("/home/arvc/workspaces/arvc_ws/src/arvc_ground_filter/results_sncs_revision_single_threaded/" + SET_ID + "/2"); // ANALYTICAL
+	const fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/sncs_test/v1/" + SET_ID + "/pcd");
+	const fs::path DL_PRED_PATH("/media/wd_hdd/ubuntu/sncs_revision/dl_results/" + SET_ID); // DL METHODS
+	const fs::path ADHOC_PRED_PATH("/media/wd_hdd/ubuntu/sncs_revision/adhoc_results/hybrid/" + SET_ID); // ANALYTICAL
 
-	// GET POINTCLOUDS FILES
-	std::vector<fs::path> cloud_paths;
-	for (const auto &entry : fs::directory_iterator(GT_PATH))
+	if (argc == 1)
 	{
-		if (entry.path().extension() == ".ply" || entry.path().extension() == ".pcd")
-			cloud_paths.push_back(entry.path());
-	}
-	std::sort(cloud_paths.begin(), cloud_paths.end());
+		// GET POINTCLOUDS FILES
+		std::vector<fs::path> cloud_paths;
+		for (const auto &entry : fs::directory_iterator(GT_PATH))
+		{
+			if (entry.path().extension() == ".ply" || entry.path().extension() == ".pcd")
+				cloud_paths.push_back(entry.path());
+		}
+		std::sort(cloud_paths.begin(), cloud_paths.end());
 
-	// ITERATE OVER FILES
-	for (const auto &entry : cloud_paths)
-	{
-		std::string CLOUD_NAME = entry.stem().string();
-		plot_by_confusion_matrix(GT_PATH, DL_PRED_PATH, ANALYTICAL_PRED_PATH, CLOUD_NAME);
+		// ITERATE OVER FILES
+		for (const auto &entry : cloud_paths)
+		{
+			std::string CLOUD_NAME = entry.stem().string();
+			plot_by_confusion_matrix_comparison(GT_PATH, DL_PRED_PATH, ADHOC_PRED_PATH, CLOUD_NAME);
+		}
 	}
+	else if (argc == 2)
+	{
+		std::string CLOUD_NAME = argv[1];
+		plot_by_confusion_matrix_comparison(GT_PATH, DL_PRED_PATH, ADHOC_PRED_PATH, CLOUD_NAME);
+	}
+	else
+	{
+		std::cout << "Usage: " << argv[0] << " [CLOUD_NAME]" << std::endl;
+		std::cout << "If no CLOUD_NAME is provided, all clouds in the GT_PATH will be processed." << std::endl;
+		return -1;
+	}
+	// SINGLE EXAMPLE
+	// const std::string SET_ID = "05";
+	// const std::string CLOUD_NAME = "00006";
+	// const fs::path GT_PATH("/media/wd_hdd/ubuntu/datasets/sncs_test/v1/" + SET_ID + "/pcd");
+	// const fs::path DL_PRED_PATH("/media/wd_hdd/ubuntu/sncs_revision/dl_results/" + SET_ID); // DL METHODS
+	// const fs::path ADHOC_PRED_PATH("/media/wd_hdd/ubuntu/sncs_revision/adhoc_results/hybrid"); // ANALYTICAL
+
+	// plot_by_confusion_matrix(GT_PATH, DL_PRED_PATH, ADHOC_PRED_PATH, CLOUD_NAME);
+
 	return 0;
 }
