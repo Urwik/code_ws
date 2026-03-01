@@ -8,7 +8,7 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/visualization/pcl_visualizer.h>
+// #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/random_sample.h>
 
@@ -21,7 +21,7 @@
 #define BLUE    "\033[34m"
 //****************************************************************************//
 // TYPE DEFINITIONS ////////////////////////////////////////////////////////////
-typedef pcl::PointXYZ PointT;
+typedef pcl::PointXYZLNormal PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 // ************************************************************************** //
 namespace fs = std::filesystem;
@@ -51,12 +51,12 @@ PointCloud::Ptr readCloud(fs::path path_)
 }
 
 
-PointCloud::Ptr randomSample(PointCloud::Ptr &cloud_in)
+PointCloud::Ptr randomSample(PointCloud::Ptr &cloud_in, const int target_points=25000)
 {
   PointCloud::Ptr out_cloud (new PointCloud);
   pcl::RandomSample<PointT> rs;
   rs.setInputCloud(cloud_in);
-  rs.setSample(25000);
+  rs.setSample(target_points);
   rs.filter(*out_cloud);
 
   return out_cloud;
@@ -67,13 +67,14 @@ void writeCloud(PointCloud::Ptr &cloud_in, fs::path entry)
 {
   pcl::PLYWriter ply_writer;
   
-  fs::path abs_file_path = fs::current_path().parent_path() / "ply_xyzsampled";
+  fs::path abs_file_path = fs::current_path() / "ply_xyzln_sampled";
   if (!fs::exists(abs_file_path)) 
     fs::create_directory(abs_file_path);
 
   std::string filename = entry.stem().string() + ".ply";
   
   abs_file_path = abs_file_path / filename;
+  std::cout << "Writing cloud to: " << abs_file_path.string() << std::endl;
   ply_writer.write(abs_file_path, *cloud_in, true);
 }
 
@@ -87,32 +88,43 @@ int main(int argc, char **argv)
 
   fs::path current_dir = fs::current_path();
 
-  if(argc < 2)
+  const int TGT_POINTS = 20000;
+  std::vector<std::string> clouds_ids{"00000","00004", "00147", "00360", "00524", "00227", "00345", "00181"};
+
+  for (const std::string &cloud_id : tq::tqdm(clouds_ids))
   {
-    std::vector<fs::path> path_vector;
-    for(const auto &entry : fs::directory_iterator(current_dir))
-    {
-      if(entry.path().extension() == ".pcd" || entry.path().extension() == ".ply")
-        path_vector.push_back(entry.path());
-    }
-
-    for(const fs::path &entry : tq::tqdm(path_vector))
-    {
-      cloud_in = readCloud(entry);
-      cloud_out = randomSample(cloud_in);
-      writeCloud(cloud_out, entry);
-
-    }
-
-
+    fs::path cloud_path = current_dir / "ply_xyzln" / (cloud_id + ".ply");
+    std::cout << "Processing cloud: " << cloud_path.string() << std::endl;
+    cloud_in = readCloud(cloud_path);
+    cloud_out = randomSample(cloud_in, TGT_POINTS);
+    writeCloud(cloud_out, cloud_path);
   }
-  else
-  {
-    fs::path entry = argv[1];
-    cloud_in = readCloud(entry);
-    cloud_out = randomSample(cloud_in);
-    writeCloud(cloud_out, entry);
-  }
+
+
+  // if(argc < 2)
+  // {
+  //   std::vector<fs::path> path_vector;
+  //   for(const auto &entry : fs::directory_iterator(current_dir))
+  //   {
+  //     if(entry.path().extension() == ".pcd" || entry.path().extension() == ".ply")
+  //       path_vector.push_back(entry.path());
+  //   }
+
+  //   for(const fs::path &entry : tq::tqdm(path_vector))
+  //   {
+  //     cloud_in = readCloud(entry);
+  //     cloud_out = randomSample(cloud_in, TGT_POINTS);
+  //     writeCloud(cloud_out, entry);
+
+  //   }
+  // }
+  // else
+  // {
+  //   fs::path entry = argv[1];
+  //   cloud_in = readCloud(entry);
+  //   cloud_out = randomSample(cloud_in, TGT_POINTS);
+  //   writeCloud(cloud_out, entry);
+  // }
 
   std::cout << GREEN << "COMPLETED!!" << RESET << std::endl;
   return 0;

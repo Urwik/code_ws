@@ -25,6 +25,7 @@ find_package(gazebo REQUIRED)
 find_package(Threads REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(ZLIB REQUIRED)  # Required by cnpy
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS} ${Threads_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS} ${PCL_LIBRARY_DIRS} ${Eigen3_LIBRARY_DIRS} ${GAZEBO_LIBRARY_DIRS} ${Threads_LIBRARY_DIRS} ${OpenCV_LIBRARY_DIRS})
@@ -105,8 +106,8 @@ target_link_libraries(arvc_view_cloud_normals ${PCL_LIBRARIES})
 # add_executable(arvc_plot_by_index src/pointclouds/plot_by_index.cpp)
 # target_link_libraries(arvc_plot_by_index ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
-# add_executable(arvc_random_sampling src/pointclouds/random_sampling.cpp)
-# target_link_libraries(arvc_random_sampling ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_executable(arvc_random_sampling src/pointclouds/filters/random_sampling.cpp)
+target_link_libraries(arvc_random_sampling ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(arvc_plot_by_binary_label src/pointclouds/visualization/plot_by_binary_label.cpp)
 target_link_libraries(arvc_plot_by_binary_label ${PCL_LIBRARIES})
@@ -119,6 +120,9 @@ target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRA
 
 add_executable(arvc_plot_by_confusion_matrix src/pointclouds/visualization/plot_by_confusion_matrix.cpp)
 target_link_libraries(arvc_plot_by_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
+
+add_executable(plot_by_confusion_matrix_arvc_truss_test_thesis src/pointclouds/visualization/plot_by_confusion_matrix_arvc_truss_test_thesis.cpp)
+target_link_libraries(plot_by_confusion_matrix_arvc_truss_test_thesis ${PCL_LIBRARIES} ${Eigen3_LIBRARIES} cnpy ${ZLIB_LIBRARIES})
 
 add_executable(sncs_confusion_matrix src/pointclouds/visualization/sncs_confusion_matrix_comparison.cpp)
 target_link_libraries(sncs_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
