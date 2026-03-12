@@ -13,8 +13,6 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/common/transforms.h>
-#include"cnpy.h"
-
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -24,15 +22,6 @@ struct truss_idx
 	pcl::Indices ground;
 	pcl::Indices truss;
 };
-
-template <typename ScalarType>
-std::vector<ScalarType> readNpy(const std::string &file_path)
-{
-	cnpy::NpyArray arr = cnpy::npy_load(file_path);
-	typename std::vector<ScalarType> vec = arr.as_vec<ScalarType>();
-	return vec;
-}
-
 
 
 template <typename PointT>
@@ -167,27 +156,8 @@ void plot_by_confusion_matrix(const fs::path GT_PATH, const fs::path PRED_PATH, 
 		std::cout << "Error: GT and Pred clouds have different sizes" << std::endl;
 		std::cout << "GT size: " << gt_cloud->points.size() << ", Pred size: " << pred_cloud->points.size() << std::endl;
 		std::cout << "Trying to find indices npy files..." << std::endl;
+		std::exit(EXIT_FAILURE);
 
-		fs::path valid_indices_path = PRED_PATH / (CLOUD_NAME + "_sampled_indices.npy");
-
-		if (fs::exists(valid_indices_path))
-		{
-			std::cout << "Found valid indices file: " << valid_indices_path.string() << std::endl;
-			std::vector<int> valid_indices = readNpy<int>(valid_indices_path.string());
-			PointCloudL::Ptr new_gt_cloud(new PointCloudL);
-
-			for (size_t i = 0; i < valid_indices.size(); i++)
-			{
-				new_gt_cloud->points.push_back(gt_cloud->points[valid_indices[i]]);
-			}
-			gt_cloud = new_gt_cloud;
-			cloud_in = arvc::parseToXYZ(gt_cloud);
-		}
-		else
-		{
-			std::cout << "No valid indices file found. Skipping cloud." << std::endl;
-			return;
-		}
 	}
 
 	std::cout << "GT Cloud Path: " << gt_cloud_path.string() << std::endl;
@@ -332,16 +302,22 @@ int main()
 	// fs::path PRED_PATH("/media/arvc/data/sncs_revision/sncs_dl_results/PointNet2BinSeg/240723142940/sncs_test_unfixed/v1/05"); // DL METHODS
 	
 	
-	fs::path GT_PATH("/media/arvc/data/datasets/thesis_segmentation/arvc_truss/test");
+	fs::path GT_PATH("/media/arvc/data/datasets/thesis_segmentation/additional_structures"); // GT PATH
 
 	fs::path PRED_PATH = fs::current_path();
 	std::string SET_NAME = PRED_PATH.stem().string();
-	std::string MODEL_NAME = PRED_PATH.parent_path().stem().string();
+	// std::string MODEL_NAME = PRED_PATH.parent_path().stem().string();
+	std::string MODEL_NAME = PRED_PATH.parent_path().parent_path().stem().string();
+
+	std::cout << "GT PATH: " << GT_PATH.string() << std::endl;
+	std::cout << "PRED PATH: " << PRED_PATH.string() << std::endl;
+	std::cout << "MODEL NAME: " << MODEL_NAME << std::endl;
+
 
 	// GT_PATH = GT_PATH / PRED_PATH.parent_path().stem() / "ply_xyzln";
 	
 	if (MODEL_NAME == "PointNetBinSeg")
-		GT_PATH = GT_PATH / SET_NAME /"ply_xyzln_sampled";
+		GT_PATH = GT_PATH / SET_NAME /"ply_xyzln_fixedSize";
 	else
 		GT_PATH = GT_PATH / SET_NAME / "ply_xyzln";
 
