@@ -124,6 +124,9 @@ target_link_libraries(arvc_plot_by_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LI
 add_executable(plot_by_confusion_matrix_arvc_truss_test_thesis src/pointclouds/visualization/plot_by_confusion_matrix_arvc_truss_test_thesis.cpp)
 target_link_libraries(plot_by_confusion_matrix_arvc_truss_test_thesis ${PCL_LIBRARIES} ${Eigen3_LIBRARIES} cnpy ${ZLIB_LIBRARIES})
 
+add_executable(plot_by_confusion_matrix_additional_structures_thesis src/pointclouds/visualization/plot_by_confusion_matrix_additional_structures_thesis.cpp)
+target_link_libraries(plot_by_confusion_matrix_additional_structures_thesis ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
+
 add_executable(sncs_confusion_matrix src/pointclouds/visualization/sncs_confusion_matrix_comparison.cpp)
 target_link_libraries(sncs_confusion_matrix ${PCL_LIBRARIES} ${Eigen3_LIBRARIES})
 
