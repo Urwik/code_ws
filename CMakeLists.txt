@@ -115,6 +115,9 @@ target_link_libraries(arvc_plot_by_binary_label ${PCL_LIBRARIES})
 add_executable(arvc_plot_label_random_color src/pointclouds/visualization/plot_label_random_color.cpp)
 target_link_libraries(arvc_plot_label_random_color ${PCL_LIBRARIES})
 
+add_executable(arvc_plot_cloud src/pointclouds/visualization/plot_cloud.cpp)
+target_link_libraries(arvc_plot_cloud ${PCL_LIBRARIES})
+
 add_executable(arvc_plot_correct_vs_wrong src/pointclouds/visualization/plot_correct_vs_wrong.cpp)
 target_link_libraries(arvc_plot_correct_vs_wrong ${PCL_LIBRARIES} ${Eigen3_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
