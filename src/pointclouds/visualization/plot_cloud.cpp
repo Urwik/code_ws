@@ -114,15 +114,55 @@ int main(int argc, char **argv)
 				// XYZI cloud
 				pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
 				pcl::fromPCLPointCloud2(*cloud2, *cloud);
-				pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> intensity(cloud, "intensity");
-				viewer->addPointCloud<pcl::PointXYZI>(cloud, intensity, "cloud");
+
+				std::set<uint32_t> unique_labels;
+				std::unordered_map<uint32_t, pcl::PointCloud<pcl::PointXYZL>> label_to_cloud;
+
+				for (size_t i = 0; i < cloud->points.size(); ++i) {
+					uint32_t label = static_cast<uint32_t>(cloud->points[i].intensity);
+					pcl::PointXYZL labeled_point;
+					labeled_point.x = cloud->points[i].x;
+					labeled_point.y = cloud->points[i].y;
+					labeled_point.z = cloud->points[i].z;
+					labeled_point.label = label;
+					unique_labels.insert(label);
+					label_to_cloud[label].points.push_back(labeled_point);
+				}
+
+				for (const auto& label : unique_labels) {
+					int r = rand() % 256;
+					int g = rand() % 256;
+					int b = rand() % 256;
+					pcl::PointCloud<pcl::PointXYZL>::Ptr label_cloud(new pcl::PointCloud<pcl::PointXYZL>);
+					*label_cloud = label_to_cloud[label];
+					pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZL> label_color_handler(label_cloud, r, g, b);
+					viewer->addPointCloud<pcl::PointXYZL>(label_cloud, label_color_handler, "cloud_label_" + std::to_string(label));
+				}
+
 				std::cout << "Displaying XYZI cloud\n";
 			} else if (hasLabels) {
 				// XYZL cloud
 				pcl::PointCloud<pcl::PointXYZL>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZL>);
 				pcl::fromPCLPointCloud2(*cloud2, *cloud);
-				pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZL> labels(cloud, "label");
-				viewer->addPointCloud<pcl::PointXYZL>(cloud, labels, "cloud");
+
+				std::set<uint32_t> unique_labels;
+				std::unordered_map<uint32_t, pcl::PointCloud<pcl::PointXYZL>> label_to_cloud;
+
+				for (size_t i = 0; i < cloud->points.size(); ++i) {
+					uint32_t label = cloud->points[i].label;
+					unique_labels.insert(label);
+					label_to_cloud[label].points.push_back(cloud->points[i]);
+				}
+
+				for (const auto& label : unique_labels) {
+					int r = rand() % 256;
+					int g = rand() % 256;
+					int b = rand() % 256;
+					pcl::PointCloud<pcl::PointXYZL>::Ptr label_cloud(new pcl::PointCloud<pcl::PointXYZL>);
+					*label_cloud = label_to_cloud[label];
+					pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZL> label_color_handler(label_cloud, r, g, b);
+					viewer->addPointCloud<pcl::PointXYZL>(label_cloud, label_color_handler, "cloud_label_" + std::to_string(label));
+				}
 				std::cout << "Displaying XYZL cloud\n";
 			} else {
 				// Plain XYZ cloud
@@ -200,15 +240,54 @@ int main(int argc, char **argv)
 			// XYZI cloud
 			pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
 			pcl::fromPCLPointCloud2(*cloud2, *cloud);
-			pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> intensity(cloud, "intensity");
-			viewer->addPointCloud<pcl::PointXYZI>(cloud, intensity, "cloud");
+			std::set<uint32_t> unique_labels;
+			std::unordered_map<uint32_t, pcl::PointCloud<pcl::PointXYZL>> label_to_cloud;
+
+			for (size_t i = 0; i < cloud->points.size(); ++i) {
+				uint32_t label = static_cast<uint32_t>(cloud->points[i].intensity);
+				pcl::PointXYZL labeled_point;
+				labeled_point.x = cloud->points[i].x;
+				labeled_point.y = cloud->points[i].y;
+				labeled_point.z = cloud->points[i].z;
+				labeled_point.label = label;
+				unique_labels.insert(label);
+				label_to_cloud[label].points.push_back(labeled_point);
+			}
+
+			for (const auto& label : unique_labels) {
+				int r = rand() % 256;
+				int g = rand() % 256;
+				int b = rand() % 256;
+				pcl::PointCloud<pcl::PointXYZL>::Ptr label_cloud(new pcl::PointCloud<pcl::PointXYZL>);
+				*label_cloud = label_to_cloud[label];
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZL> label_color_handler(label_cloud, r, g, b);
+				viewer->addPointCloud<pcl::PointXYZL>(label_cloud, label_color_handler, "cloud_label_" + std::to_string(label));
+			}
 			std::cout << "Displaying XYZI cloud\n";
+
 		} else if (hasLabels) {
 			// XYZL cloud
 			pcl::PointCloud<pcl::PointXYZL>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZL>);
 			pcl::fromPCLPointCloud2(*cloud2, *cloud);
-			pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZL> labels(cloud, "label");
-			viewer->addPointCloud<pcl::PointXYZL>(cloud, labels, "cloud");
+
+			std::set<uint32_t> unique_labels;
+			std::unordered_map<uint32_t, pcl::PointCloud<pcl::PointXYZL>> label_to_cloud;
+
+			for (size_t i = 0; i < cloud->points.size(); ++i) {
+				uint32_t label = cloud->points[i].label;
+				unique_labels.insert(label);
+				label_to_cloud[label].points.push_back(cloud->points[i]);
+			}
+
+			for (const auto& label : unique_labels) {
+				int r = rand() % 256;
+				int g = rand() % 256;
+				int b = rand() % 256;
+				pcl::PointCloud<pcl::PointXYZL>::Ptr label_cloud(new pcl::PointCloud<pcl::PointXYZL>);
+				*label_cloud = label_to_cloud[label];
+				pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZL> label_color_handler(label_cloud, r, g, b);
+				viewer->addPointCloud<pcl::PointXYZL>(label_cloud, label_color_handler, "cloud_label_" + std::to_string(label));
+			}
 			std::cout << "Displaying XYZL cloud\n";
 		} else {
 			// Plain XYZ cloud
