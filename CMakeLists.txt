@@ -112,6 +112,9 @@ target_link_libraries(arvc_random_sampling ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(arvc_plot_by_binary_label src/pointclouds/visualization/plot_by_binary_label.cpp)
 target_link_libraries(arvc_plot_by_binary_label ${PCL_LIBRARIES})
 
+add_executable(arvc_plot_same_color src/pointclouds/visualization/plot_same_color.cpp)
+target_link_libraries(arvc_plot_same_color ${PCL_LIBRARIES})
+
 add_executable(arvc_plot_label_random_color src/pointclouds/visualization/plot_label_random_color.cpp)
 target_link_libraries(arvc_plot_label_random_color ${PCL_LIBRARIES})
 

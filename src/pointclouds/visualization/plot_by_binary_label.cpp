@@ -59,7 +59,7 @@ namespace fs = std::filesystem;
 void addCustomFrame(pcl::visualization::PCLVisualizer::Ptr &visualizer, const pcl::PointXYZ origin, const std::string name="origin", const float length = 0.5, const float radius = 0.1)
 {
 
-  visualizer->addSphere(origin, 0.15, 1.0, 0.0, 0.0, name + "_sphere");
+  visualizer->addSphere(origin, 0.15, 1.0, 0.0, 1.0, name + "_sphere");
 
   visualizer->addLine(origin, pcl::PointXYZ(origin.x + length, origin.y, origin.z), 1, 0, 0, name + "_x");
   visualizer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, radius, name + "_x");
