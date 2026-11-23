@@ -293,7 +293,9 @@ int main(int argc, char **argv)
 			// Plain XYZ cloud
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 			pcl::fromPCLPointCloud2(*cloud2, *cloud);
-			viewer->addPointCloud<pcl::PointXYZ>(cloud, "cloud");
+
+			pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color_handler(cloud, 150, 150, 150); // grey color
+			viewer->addPointCloud<pcl::PointXYZ>(cloud, color_handler, "cloud");
 			std::cout << "Displaying XYZ cloud\n";
 		} 
 
